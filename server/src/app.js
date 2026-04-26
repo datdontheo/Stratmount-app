@@ -8,7 +8,10 @@ const app = express();
 app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+const uploadsDir = process.env.NODE_ENV === 'production'
+  ? '/tmp'
+  : path.join(__dirname, '../uploads');
+app.use('/uploads', express.static(uploadsDir));
 
 // Routes
 app.use('/api/auth', require('./routes/auth.routes'));

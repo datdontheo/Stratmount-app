@@ -7,8 +7,12 @@ const { authenticate } = require('../middleware/auth.middleware');
 
 const prisma = new PrismaClient();
 
+const uploadDir = process.env.NODE_ENV === 'production'
+  ? '/tmp'
+  : path.join(__dirname, '../../uploads');
+
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '../../uploads')),
+  destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => {
     const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     cb(null, `${unique}${path.extname(file.originalname)}`);
