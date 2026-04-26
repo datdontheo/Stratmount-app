@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(OUTLET)
+  isActive  Boolean  @default(true)
+  mustChangePassword Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  assignedInventory InventoryAssignment[]
+  payments          Payment[]
+  sales             Sale[]
+}
+
+enum Role {
+  ADMIN
+  WAREHOUSE
+  OUTLET
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  name         String
+  sku          String   @unique
+  category     Category @default(PERFUME)
+  brand        String?
+  description  String?
+  unit         String   @default("bottle")
+  costPrice    Float    @default(0)
+  sellingPrice Float    @default(0)
+  currency     String   @default("GHS")
+  createdAt    DateTime @default(now())
+
+  inventory     Inventory[]
+  saleItems     SaleItem[]
+  purchaseItems PurchaseItem[]
+}
+
+enum Category {
+  PERFUME
+  GADGET
+  OTHER
+}
+
+model Inventory {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int      @default(0)
+  location  String
+  holderId  String?
+  updatedAt DateTime @updatedAt
+}
+
+model InventoryAssignment {
+  id        String   @id @default(cuid())
+  productId String
+  toUserId  String
+  user      User     @relation(fields: [toUserId], references: [id])
+  quantity  Int
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model Purchase {
+  id            String   @id @default(cuid())
+  supplierId    String
+  supplier      Supplier @relation(fields: [supplierId], references: [id])
+  invoiceNumber String?
+  purchaseDate  DateTime
+  currency      String   @default("USD")
+  exchangeRate  Float    @default(1)
+  totalForeign  Float
+  totalGHS      Float
+  fxGainLoss    Float?   @default(0)
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  items PurchaseItem[]
+}
+
+model PurchaseItem {
+  id         String   @id @default(cuid())
+  purchaseId String
+  purchase   Purchase @relation(fields: [purchaseId], references: [id])
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  quantity   Int
+  unitCost   Float
+  totalCost  Float
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  country   String?
+  currency  String   @default("USD")
+  contact   String?
+  email     String?
+  createdAt DateTime @default(now())
+
+  purchases Purchase[]
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  type      String   @default("DIRECT")
+  createdAt DateTime @default(now())
+
+  sales Sale[]
+}
+
+model Sale {
+  id          String     @id @default(cuid())
+  customerId  String?
+  customer    Customer?  @relation(fields: [customerId], references: [id])
+  soldById    String
+  soldBy      User       @relation(fields: [soldById], references: [id])
+  saleDate    DateTime   @default(now())
+  totalAmount Float
+  amountPaid  Float      @default(0)
+  balance     Float      @default(0)
+  currency    String     @default("GHS")
+  status      SaleStatus @default(PENDING)
+  notes       String?
+  receiptSent Boolean    @default(false)
+
+  items    SaleItem[]
+  payments Payment[]
+}
+
+enum SaleStatus {
+  PENDING
+  PARTIAL
+  PAID
+}
+
+model SaleItem {
+  id        String  @id @default(cuid())
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPrice Float
+  total     Float
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  saleId      String?
+  sale        Sale?    @relation(fields: [saleId], references: [id])
+  paidById    String
+  paidBy      User     @relation(fields: [paidById], references: [id])
+  amount      Float
+  currency    String   @default("GHS")
+  method      String   @default("MOBILE_MONEY")
+  proofImage  String?
+  notes       String?
+  paymentDate DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  category    String
+  description String
+  amount      Float
+  currency    String   @default("GHS")
+  date        DateTime
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+model Drawing {
+  id          String   @id @default(cuid())
+  amount      Float
+  description String?
+  date        DateTime
+  createdAt   DateTime @default(now())
+}
+
+model ExchangeRate {
+  id           String   @id @default(cuid())
+  fromCurrency String
+  toCurrency   String   @default("GHS")
+  rate         Float
+  date         DateTime @default(now())
+  setBy        String?
+}

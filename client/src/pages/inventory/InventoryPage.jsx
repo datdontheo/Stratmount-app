@@ -1,0 +1,227 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import api from '../../api/client';
+import useAuthStore from '../../store/authStore';
+import Modal from '../../components/ui/Modal';
+import Badge from '../../components/ui/Badge';
+import { formatCurrency } from '../../utils/format';
+import { SkeletonRow } from '../../components/ui/Skeleton';
+
+function AssignModal({ isOpen, onClose, products, users }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ productId: '', toUserId: '', quantity: 1, notes: '' });
+
+  const assign = useMutation({
+    mutationFn: (data) => api.post('/inventory/assign', data),
+    onSuccess: () => {
+      toast.success('Stock assigned successfully');
+      qc.invalidateQueries(['inventory']);
+      onClose();
+      setForm({ productId: '', toUserId: '', quantity: 1, notes: '' });
+    },
+    onError: (err) => toast.error(err.error || 'Failed to assign stock'),
+  });
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Assign Stock" size="sm">
+      <div className="space-y-4">
+        <div>
+          <label className="label">Product</label>
+          <select className="input" value={form.productId} onChange={(e) => setForm({ ...form, productId: e.target.value })}>
+            <option value="">Select product</option>
+            {products?.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Assign To</label>
+          <select className="input" value={form.toUserId} onChange={(e) => setForm({ ...form, toUserId: e.target.value })}>
+            <option value="">Select user</option>
+            {users?.filter((u) => u.role !== 'ADMIN').map((u) => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Quantity</label>
+          <input type="number" className="input" min={1} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: +e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Notes (optional)</label>
+          <input className="input" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button className="btn-secondary flex-1" onClick={onClose}>Cancel</button>
+          <button
+            className="btn-primary flex-1"
+            onClick={() => assign.mutate(form)}
+            disabled={!form.productId || !form.toUserId || assign.isPending}
+          >
+            {assign.isPending ? 'Assigning...' : 'Assign Stock'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+export default function InventoryPage() {
+  const { user } = useAuthStore();
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('');
+
+  const isOutlet = user?.role === 'OUTLET';
+
+  const { data: inventory, isLoading } = useQuery({
+    queryKey: ['inventory', isOutlet],
+    queryFn: () => api.get(isOutlet ? '/inventory/my' : '/inventory'),
+  });
+
+  const { data: products } = useQuery({
+    queryKey: ['products'],
+    queryFn: () => api.get('/products'),
+    enabled: !isOutlet,
+  });
+
+  const { data: holders } = useQuery({
+    queryKey: ['inventory-holders'],
+    queryFn: () => api.get('/inventory/holders'),
+    enabled: !isOutlet,
+  });
+
+  const filtered = (inventory || []).filter((item) =>
+    categoryFilter ? item.product.category === categoryFilter : true
+  );
+
+  // Group by product for admin view
+  const grouped = {};
+  if (!isOutlet) {
+    filtered.forEach((item) => {
+      if (!grouped[item.productId]) {
+        grouped[item.productId] = { product: item.product, entries: [] };
+      }
+      grouped[item.productId].entries.push(item);
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-heading font-bold text-2xl text-white">Inventory</h1>
+          <p className="text-text-secondary text-sm mt-1">
+            {isOutlet ? 'Your assigned stock' : 'All stock locations'}
+          </p>
+        </div>
+        {!isOutlet && (
+          <button className="btn-primary" onClick={() => setAssignOpen(true)}>
+            + Assign Stock
+          </button>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-3 flex-wrap">
+        {['', 'PERFUME', 'GADGET', 'OTHER'].map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setCategoryFilter(cat)}
+            className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+              categoryFilter === cat ? 'bg-white text-black font-semibold' : 'bg-bg-tertiary text-text-secondary hover:text-white'
+            }`}
+          >
+            {cat || 'All'}
+          </button>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="card hidden lg:block overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="th">Product</th>
+              <th className="th">SKU</th>
+              <th className="th">Category</th>
+              {isOutlet ? (
+                <th className="th">Qty</th>
+              ) : (
+                <>
+                  <th className="th">Warehouse</th>
+                  <th className="th">Outlets</th>
+                  <th className="th">Total</th>
+                </>
+              )}
+              <th className="th">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading && Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={isOutlet ? 5 : 7} />)}
+            {isOutlet
+              ? filtered.map((item) => (
+                  <tr key={item.id} className="table-row">
+                    <td className="td font-medium">{item.product.name}</td>
+                    <td className="td text-text-secondary">{item.product.sku}</td>
+                    <td className="td"><Badge value={item.product.category} /></td>
+                    <td className="td">
+                      <span className={item.quantity <= 3 ? 'text-danger font-medium' : ''}>{item.quantity}</span>
+                    </td>
+                    <td className="td">{formatCurrency(item.quantity * item.product.sellingPrice)}</td>
+                  </tr>
+                ))
+              : Object.values(grouped).map(({ product, entries }) => {
+                  const warehouseQty = entries.find((e) => e.location === 'WAREHOUSE')?.quantity || 0;
+                  const outletEntries = entries.filter((e) => e.location !== 'WAREHOUSE');
+                  const total = entries.reduce((s, e) => s + e.quantity, 0);
+                  return (
+                    <tr key={product.id} className="table-row">
+                      <td className="td font-medium">{product.name}</td>
+                      <td className="td text-text-secondary">{product.sku}</td>
+                      <td className="td"><Badge value={product.category} /></td>
+                      <td className="td">
+                        <span className={warehouseQty <= 5 ? 'text-warning' : ''}>{warehouseQty}</span>
+                      </td>
+                      <td className="td text-text-secondary text-xs">
+                        {outletEntries.map((e) => `${e.location.replace('OUTLET_', '').slice(0, 6)}: ${e.quantity}`).join(', ') || '—'}
+                      </td>
+                      <td className="td font-medium">{total}</td>
+                      <td className="td">{formatCurrency(total * product.costPrice)}</td>
+                    </tr>
+                  );
+                })}
+            {!isLoading && !filtered.length && (
+              <tr><td colSpan={8} className="td text-center text-text-tertiary py-8">No inventory records</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="lg:hidden space-y-3">
+        {isLoading && <div className="text-center py-8 text-text-tertiary">Loading...</div>}
+        {filtered.map((item) => (
+          <div key={item.id} className="card">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="font-medium text-white">{item.product.name}</p>
+                <p className="text-text-tertiary text-xs mt-0.5">{item.product.sku}</p>
+              </div>
+              <Badge value={item.product.category} />
+            </div>
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+              <span className="text-text-secondary text-sm">Quantity</span>
+              <span className={`font-medium ${item.quantity <= 3 ? 'text-danger' : 'text-white'}`}>
+                {item.quantity} {item.product.unit}s
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <AssignModal
+        isOpen={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        products={products}
+        users={holders?.users}
+      />
+    </div>
+  );
+}

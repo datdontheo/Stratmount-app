@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-tertiary: #1a1a1a;
+  --border: #2a2a2a;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-tertiary: #555555;
+  --accent: #ffffff;
+  --accent-dim: #333333;
+  --success: #4ade80;
+  --danger: #f87171;
+  --warning: #fbbf24;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  background-color: #0a0a0a;
+  color: #ffffff;
+  font-family: 'DM Sans', sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #111111;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 2px;
+}
+
+@layer components {
+  .card {
+    @apply bg-bg-secondary border border-border rounded-xl p-4;
+  }
+  .btn-primary {
+    @apply bg-white text-black font-semibold px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply bg-accent-dim text-white font-medium px-4 py-2 rounded-lg hover:bg-[#444] transition-colors;
+  }
+  .btn-danger {
+    @apply bg-danger/20 text-danger font-medium px-4 py-2 rounded-lg hover:bg-danger/30 transition-colors;
+  }
+  .input {
+    @apply w-full bg-bg-tertiary border border-border text-white rounded-lg px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-white/30 placeholder:text-text-tertiary transition-all;
+  }
+  .label {
+    @apply block text-text-secondary text-sm font-medium mb-1;
+  }
+  .badge-paid {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/20 text-success;
+  }
+  .badge-partial {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-warning/20 text-warning;
+  }
+  .badge-pending {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-danger/20 text-danger;
+  }
+  .table-row {
+    @apply border-b border-border hover:bg-bg-tertiary transition-colors;
+  }
+  .th {
+    @apply text-left text-text-secondary text-xs font-medium uppercase tracking-wider px-4 py-3;
+  }
+  .td {
+    @apply px-4 py-3 text-sm text-text-primary;
+  }
+}
