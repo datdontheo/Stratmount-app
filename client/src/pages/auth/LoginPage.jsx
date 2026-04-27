@@ -6,7 +6,7 @@ import useAuthStore from '../../store/authStore';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('admin@stratmount.com');
-  const [password, setPassword] = useState('admin123');
+  const [password, setPassword] = useState('1234');
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
   const navigate = useNavigate();

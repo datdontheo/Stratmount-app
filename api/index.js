@@ -41,9 +41,9 @@ async function runSeed(prisma) {
   const bcrypt = require('bcryptjs');
 
   const [adminPw, kalebPw, outletPw] = await Promise.all([
-    bcrypt.hash('admin123', 12),
-    bcrypt.hash('kaleb123', 12),
-    bcrypt.hash('outlet123', 12),
+    bcrypt.hash('1234', 12),
+    bcrypt.hash('1234', 12),
+    bcrypt.hash('1234', 12),
   ]);
 
   const admin   = await prisma.user.create({ data: { name: 'Admin', email: 'admin@stratmount.com', password: adminPw, role: 'ADMIN', mustChangePassword: true } });
