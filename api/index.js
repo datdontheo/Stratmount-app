@@ -11,7 +11,19 @@ let _ready = false;
 async function ensureReady() {
   if (_ready) return;
 
-  // Auto-seed if the database is empty
+  // Run migrations then seed if empty
+  try {
+    const { execSync } = require('child_process');
+    const prismaPath = path.resolve(__dirname, '../node_modules/.bin/prisma');
+    const schemaPath = path.resolve(__dirname, '../server/prisma/schema.prisma');
+    execSync(`"${prismaPath}" migrate deploy --schema="${schemaPath}"`, {
+      env: process.env,
+      stdio: 'pipe',
+    });
+  } catch (e) {
+    console.error('Migrate failed:', e.message);
+  }
+
   try {
     const { PrismaClient } = require('@prisma/client');
     const prisma = new PrismaClient();
