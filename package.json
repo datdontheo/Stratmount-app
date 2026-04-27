@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "vercel-build": "prisma generate --schema=server/prisma/schema.prisma && cd client && npm install && npm run build",
+    "vercel-build": "prisma generate --schema=server/prisma/schema.prisma && cd client && npm install --include=dev && npm run build",
     "install:all": "npm install && cd client && npm install",
     "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
     "server": "cd server && npm run dev",
