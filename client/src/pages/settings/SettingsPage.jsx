@@ -1,15 +1,40 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import api from '../../api/client';
+import useAuthStore from '../../store/authStore';
 
 export default function SettingsPage() {
   const [businessName, setBusinessName] = useState('Strat Mount');
   const [whatsapp, setWhatsapp] = useState('');
   const [baseCurrency, setBaseCurrency] = useState('GHS');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwLoading, setPwLoading] = useState(false);
+  const { user, updateUser } = useAuthStore();
 
   const save = (e) => {
     e.preventDefault();
     localStorage.setItem('sm_settings', JSON.stringify({ businessName, whatsapp, baseCurrency }));
     toast.success('Settings saved');
+  };
+
+  const changePassword = async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) return toast.error('Passwords do not match');
+    setPwLoading(true);
+    try {
+      await api.post('/auth/change-password', { currentPassword, newPassword });
+      updateUser({ ...user, mustChangePassword: false });
+      toast.success('Password changed successfully');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      toast.error(err.error || 'Failed to change password');
+    } finally {
+      setPwLoading(false);
+    }
   };
 
   return (
@@ -38,6 +63,25 @@ export default function SettingsPage() {
         </div>
 
         <button type="submit" className="btn-primary w-full">Save Settings</button>
+      </form>
+
+      <form onSubmit={changePassword} className="card space-y-4">
+        <h2 className="font-heading font-semibold text-text-primary">Change Password</h2>
+        <div>
+          <label className="label">Current Password</label>
+          <input type="password" className="input" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+        </div>
+        <div>
+          <label className="label">New Password</label>
+          <input type="password" className="input" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+        </div>
+        <div>
+          <label className="label">Confirm New Password</label>
+          <input type="password" className="input" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+        </div>
+        <button type="submit" className="btn-primary w-full" disabled={pwLoading}>
+          {pwLoading ? 'Updating...' : 'Update Password'}
+        </button>
       </form>
 
       <div className="card">

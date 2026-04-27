@@ -15,7 +15,6 @@ export default function ChangePasswordPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (newPassword !== confirm) return toast.error('Passwords do not match');
-    if (newPassword.length < 8) return toast.error('Password must be at least 8 characters');
     setLoading(true);
     try {
       await api.post('/auth/change-password', { currentPassword, newPassword });
@@ -36,7 +35,7 @@ export default function ChangePasswordPage() {
           <div className="inline-flex items-center justify-center w-14 h-14 bg-white rounded-xl mb-4">
             <span className="text-black font-heading font-bold text-xl">SM</span>
           </div>
-          <h1 className="font-heading font-bold text-2xl text-white">Welcome to Strat Mount</h1>
+          <h1 className="font-heading font-bold text-2xl text-text-primary">Welcome to Strat Mount</h1>
           <p className="text-text-secondary text-sm mt-2">
             Please set a secure password to continue.
           </p>
