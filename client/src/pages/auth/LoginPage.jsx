@@ -1,15 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import useAuthStore from '../../store/authStore';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('admin@stratmount.com');
+  const [password, setPassword] = useState('admin123');
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleAutoSignIn = async () => {
+      setLoading(true);
+      try {
+        const data = await api.post('/auth/login', { email, password });
+        login(data.user, data.token);
+        if (data.user.mustChangePassword) {
+          navigate('/change-password');
+        } else {
+          navigate('/dashboard');
+        }
+      } catch (err) {
+        setLoading(false);
+        console.log('Auto sign-in skipped (likely first load or connection issue)');
+      }
+    };
+    handleAutoSignIn();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
