@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../../api/client';
 import Badge from '../../components/ui/Badge';
 import { formatCurrency, formatDate } from '../../utils/format';
+import { IconPhone, IconPrinter, IconArrowLeft } from '../../components/ui/Icons';
 
 export default function SaleDetailPage() {
   const { id } = useParams();
@@ -23,7 +24,7 @@ export default function SaleDetailPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <Link to="/sales" className="text-text-secondary hover:text-white text-sm">← Back to Sales</Link>
+        <Link to="/sales" className="text-text-secondary hover:text-text-primary text-sm flex items-center gap-1"><IconArrowLeft size={14} /> Back to Sales</Link>
       </div>
 
       {/* Receipt card */}
@@ -33,7 +34,7 @@ export default function SaleDetailPage() {
           <div className="inline-flex items-center justify-center w-10 h-10 bg-white rounded-lg mb-3">
             <span className="text-black font-heading font-bold text-sm">SM</span>
           </div>
-          <h1 className="font-heading font-bold text-xl text-white">STRAT MOUNT</h1>
+          <h1 className="font-heading font-bold text-xl text-text-primary">STRAT MOUNT</h1>
           <p className="text-text-secondary text-xs mt-1">Business Management</p>
         </div>
 
@@ -41,20 +42,20 @@ export default function SaleDetailPage() {
         <div className="grid grid-cols-2 gap-4 py-5 border-b border-border">
           <div>
             <p className="text-text-tertiary text-xs">Receipt #</p>
-            <p className="font-heading font-semibold text-white">{id.slice(-8).toUpperCase()}</p>
+            <p className="font-heading font-semibold text-text-primary">{id.slice(-8).toUpperCase()}</p>
           </div>
           <div className="text-right">
             <p className="text-text-tertiary text-xs">Date</p>
-            <p className="text-white">{formatDate(sale.saleDate)}</p>
+            <p className="text-text-primary">{formatDate(sale.saleDate)}</p>
           </div>
           <div>
             <p className="text-text-tertiary text-xs">Customer</p>
-            <p className="text-white">{sale.customer?.name || 'Walk-in'}</p>
+            <p className="text-text-primary">{sale.customer?.name || 'Walk-in'}</p>
             {sale.customer?.phone && <p className="text-text-secondary text-xs">{sale.customer.phone}</p>}
           </div>
           <div className="text-right">
             <p className="text-text-tertiary text-xs">Sold By</p>
-            <p className="text-white">{sale.soldBy?.name}</p>
+            <p className="text-text-primary">{sale.soldBy?.name}</p>
           </div>
         </div>
 
@@ -72,10 +73,10 @@ export default function SaleDetailPage() {
             <tbody>
               {sale.items?.map((item) => (
                 <tr key={item.id} className="border-t border-border/50">
-                  <td className="py-2 text-white">{item.product.name}</td>
+                  <td className="py-2 text-text-primary">{item.product.name}</td>
                   <td className="py-2 text-right text-text-secondary">{item.quantity}</td>
                   <td className="py-2 text-right text-text-secondary">{formatCurrency(item.unitPrice)}</td>
-                  <td className="py-2 text-right font-medium text-white">{formatCurrency(item.total)}</td>
+                  <td className="py-2 text-right font-medium text-text-primary">{formatCurrency(item.total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -108,10 +109,10 @@ export default function SaleDetailPage() {
       {/* Actions */}
       <div className="flex gap-3">
         <button onClick={shareWhatsApp} className="btn-secondary flex-1 flex items-center justify-center gap-2">
-          📱 Share via WhatsApp
+          <IconPhone size={16} /> Share via WhatsApp
         </button>
         <button onClick={() => window.print()} className="btn-secondary flex-1 flex items-center justify-center gap-2">
-          🖨️ Print Receipt
+          <IconPrinter size={16} /> Print Receipt
         </button>
       </div>
     </div>

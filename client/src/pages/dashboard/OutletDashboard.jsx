@@ -25,7 +25,7 @@ export default function OutletDashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-white">My Dashboard</h1>
+          <h1 className="font-heading font-bold text-2xl text-text-primary">My Dashboard</h1>
           <p className="text-text-secondary text-sm mt-1">Your outlet overview</p>
         </div>
         <Link to="/payments" className="btn-primary text-sm">+ Record Payment</Link>
@@ -35,18 +35,18 @@ export default function OutletDashboard() {
         {/* My Stock */}
         <div className="card">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-heading font-semibold text-white">My Stock</h2>
-            <Link to="/inventory" className="text-text-secondary text-xs hover:text-white">View →</Link>
+            <h2 className="font-heading font-semibold text-text-primary">My Stock</h2>
+            <Link to="/inventory" className="text-text-secondary text-xs hover:text-text-primary">View →</Link>
           </div>
           {invLoading ? <SkeletonList rows={3} /> : (
             <div className="space-y-2">
               {(inventory || []).map((item) => (
                 <div key={item.id} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
                   <div>
-                    <p className="text-sm text-white">{item.product.name}</p>
+                    <p className="text-sm text-text-primary">{item.product.name}</p>
                     <p className="text-xs text-text-tertiary">{item.product.sku}</p>
                   </div>
-                  <span className={`text-sm font-medium ${item.quantity <= 3 ? 'text-danger' : 'text-white'}`}>
+                  <span className={`text-sm font-medium ${item.quantity <= 3 ? 'text-danger' : 'text-text-primary'}`}>
                     {item.quantity} {item.product.unit}s
                   </span>
                 </div>
@@ -59,19 +59,19 @@ export default function OutletDashboard() {
         {/* My Sales */}
         <div className="card">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-heading font-semibold text-white">Recent Sales</h2>
-            <Link to="/sales" className="text-text-secondary text-xs hover:text-white">View →</Link>
+            <h2 className="font-heading font-semibold text-text-primary">Recent Sales</h2>
+            <Link to="/sales" className="text-text-secondary text-xs hover:text-text-primary">View →</Link>
           </div>
           {salesLoading ? <SkeletonList rows={3} /> : (
             <div className="space-y-2">
               {(sales || []).slice(0, 5).map((sale) => (
                 <div key={sale.id} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
                   <div>
-                    <p className="text-sm text-white">{sale.customer?.name || 'Walk-in'}</p>
+                    <p className="text-sm text-text-primary">{sale.customer?.name || 'Walk-in'}</p>
                     <p className="text-xs text-text-tertiary">{formatDate(sale.saleDate)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-white">{formatCurrency(sale.totalAmount)}</p>
+                    <p className="text-sm font-medium text-text-primary">{formatCurrency(sale.totalAmount)}</p>
                     <Badge value={sale.status} />
                   </div>
                 </div>
@@ -84,15 +84,15 @@ export default function OutletDashboard() {
         {/* My Payments */}
         <div className="card">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-heading font-semibold text-white">My Payments</h2>
-            <Link to="/payments" className="text-text-secondary text-xs hover:text-white">View →</Link>
+            <h2 className="font-heading font-semibold text-text-primary">My Payments</h2>
+            <Link to="/payments" className="text-text-secondary text-xs hover:text-text-primary">View →</Link>
           </div>
           {paymentsLoading ? <SkeletonList rows={3} /> : (
             <div className="space-y-2">
               {(payments || []).slice(0, 5).map((p) => (
                 <div key={p.id} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
                   <div>
-                    <p className="text-sm text-white">{formatCurrency(p.amount)}</p>
+                    <p className="text-sm text-text-primary">{formatCurrency(p.amount)}</p>
                     <p className="text-xs text-text-tertiary">{p.method?.replace('_', ' ')}</p>
                   </div>
                   <div className="text-right">

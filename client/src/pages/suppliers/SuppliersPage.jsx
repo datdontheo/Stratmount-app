@@ -36,7 +36,7 @@ export default function SuppliersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-white">Suppliers</h1>
+          <h1 className="font-heading font-bold text-2xl text-text-primary">Suppliers</h1>
           <p className="text-text-secondary text-sm mt-1">{suppliers?.length || 0} suppliers</p>
         </div>
         <button className="btn-primary" onClick={openAdd}>+ Add Supplier</button>
@@ -64,8 +64,8 @@ export default function SuppliersPage() {
                 <td className="td text-text-secondary">{s._count?.purchases || 0}</td>
                 <td className="td">
                   <div className="flex gap-2">
-                    <button onClick={() => setHistorySupplier(s)} className="text-text-secondary hover:text-white text-xs">History</button>
-                    <button onClick={() => openEdit(s)} className="text-text-secondary hover:text-white text-xs">Edit</button>
+                    <button onClick={() => setHistorySupplier(s)} className="text-text-secondary hover:text-text-primary text-xs">History</button>
+                    <button onClick={() => openEdit(s)} className="text-text-secondary hover:text-text-primary text-xs">Edit</button>
                   </div>
                 </td>
               </tr>
@@ -80,7 +80,7 @@ export default function SuppliersPage() {
           <div key={s.id} className="card">
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-medium text-white">{s.name}</p>
+                <p className="font-medium text-text-primary">{s.name}</p>
                 <p className="text-text-tertiary text-xs mt-0.5">{s.country} · {s.currency}</p>
               </div>
             </div>
@@ -122,7 +122,7 @@ export default function SuppliersPage() {
             {history.map((p) => (
               <div key={p.id} className="bg-bg-tertiary rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="font-medium text-white">{formatDate(p.purchaseDate)}</p>
+                  <p className="font-medium text-text-primary">{formatDate(p.purchaseDate)}</p>
                   <span className="text-text-secondary text-sm">{p.invoiceNumber || 'No invoice'}</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-sm">

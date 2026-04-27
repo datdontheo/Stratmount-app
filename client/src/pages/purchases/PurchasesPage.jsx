@@ -5,6 +5,7 @@ import api from '../../api/client';
 import Modal from '../../components/ui/Modal';
 import { formatCurrency, formatDate } from '../../utils/format';
 import { SkeletonRow } from '../../components/ui/Skeleton';
+import { IconX } from '../../components/ui/Icons';
 
 function NewPurchaseModal({ isOpen, onClose, products, suppliers }) {
   const qc = useQueryClient();
@@ -71,7 +72,7 @@ function NewPurchaseModal({ isOpen, onClose, products, suppliers }) {
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="label mb-0">Items</label>
-            <button onClick={addItem} className="text-text-secondary hover:text-white text-sm">+ Add item</button>
+            <button onClick={addItem} className="text-text-secondary hover:text-text-primary text-sm">+ Add item</button>
           </div>
           <div className="space-y-2">
             {form.items.map((item, idx) => (
@@ -92,7 +93,7 @@ function NewPurchaseModal({ isOpen, onClose, products, suppliers }) {
                   {(item.quantity * item.unitCost).toFixed(2)}
                 </div>
                 <div className="col-span-1 text-right">
-                  {form.items.length > 1 && <button onClick={() => removeItem(idx)} className="text-danger text-sm">✕</button>}
+                  {form.items.length > 1 && <button onClick={() => removeItem(idx)} className="text-danger text-sm"><IconX size={14} /></button>}
                 </div>
               </div>
             ))}
@@ -103,11 +104,11 @@ function NewPurchaseModal({ isOpen, onClose, products, suppliers }) {
         <div className="bg-bg-tertiary rounded-lg p-3 space-y-1.5 text-sm">
           <div className="flex justify-between">
             <span className="text-text-secondary">Total ({form.currency})</span>
-            <span className="text-white font-medium">{totalForeign.toFixed(2)}</span>
+            <span className="text-text-primary font-medium">{totalForeign.toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-text-secondary">Total (GHS @ {form.exchangeRate})</span>
-            <span className="text-white font-medium">{formatCurrency(totalGHS)}</span>
+            <span className="text-text-primary font-medium">{formatCurrency(totalGHS)}</span>
           </div>
         </div>
 
@@ -152,7 +153,7 @@ export default function PurchasesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-white">Purchases</h1>
+          <h1 className="font-heading font-bold text-2xl text-text-primary">Purchases</h1>
           <p className="text-text-secondary text-sm mt-1">Supplier purchase records</p>
         </div>
         <button className="btn-primary" onClick={() => setAddOpen(true)}>+ New Purchase</button>
@@ -203,7 +204,7 @@ export default function PurchasesPage() {
           <div key={p.id} className="card">
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-medium text-white">{p.supplier.name}</p>
+                <p className="font-medium text-text-primary">{p.supplier.name}</p>
                 <p className="text-text-tertiary text-xs mt-0.5">{formatDate(p.purchaseDate)} · {p.invoiceNumber || 'No invoice'}</p>
               </div>
               <span className="text-text-secondary text-xs">{p.currency}</span>

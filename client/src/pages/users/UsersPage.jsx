@@ -37,7 +37,7 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-white">Users</h1>
+          <h1 className="font-heading font-bold text-2xl text-text-primary">Users</h1>
           <p className="text-text-secondary text-sm mt-1">{users?.length || 0} users</p>
         </div>
         <button className="btn-primary" onClick={openAdd}>+ Add User</button>
@@ -69,7 +69,7 @@ export default function UsersPage() {
                 <td className="td text-text-secondary">{formatDate(u.createdAt)}</td>
                 <td className="td">
                   <div className="flex gap-2">
-                    <button onClick={() => openEdit(u)} className="text-text-secondary hover:text-white text-xs">Edit</button>
+                    <button onClick={() => openEdit(u)} className="text-text-secondary hover:text-text-primary text-xs">Edit</button>
                     {u.role !== 'ADMIN' && (
                       <button onClick={() => setDeactivateTarget(u)} className="text-text-secondary hover:text-warning text-xs">
                         {u.isActive ? 'Deactivate' : 'Activate'}
@@ -89,7 +89,7 @@ export default function UsersPage() {
           <div key={u.id} className="card">
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-medium text-white">{u.name}</p>
+                <p className="font-medium text-text-primary">{u.name}</p>
                 <p className="text-text-tertiary text-xs mt-0.5">{u.email}</p>
               </div>
               <div className="flex items-center gap-2">

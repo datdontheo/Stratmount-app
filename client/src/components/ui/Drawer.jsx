@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { IconX } from './Icons';
 
 export default function Drawer({ isOpen, onClose, title, children }) {
   useEffect(() => {
@@ -16,12 +17,12 @@ export default function Drawer({ isOpen, onClose, title, children }) {
         }`}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="font-heading font-semibold text-white text-lg">{title}</h2>
+          <h2 className="font-heading font-semibold text-text-primary text-lg">{title}</h2>
           <button
             onClick={onClose}
-            className="text-text-secondary hover:text-white transition-colors w-8 h-8 flex items-center justify-center rounded-lg hover:bg-bg-tertiary"
+            className="text-text-secondary hover:text-text-primary transition-colors w-8 h-8 flex items-center justify-center rounded-lg hover:bg-bg-tertiary"
           >
-            ✕
+            <IconX size={16} />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>

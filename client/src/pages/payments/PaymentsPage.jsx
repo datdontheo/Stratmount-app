@@ -5,6 +5,7 @@ import api from '../../api/client';
 import Modal from '../../components/ui/Modal';
 import { formatCurrency, formatDate } from '../../utils/format';
 import { SkeletonRow } from '../../components/ui/Skeleton';
+import { IconPlus } from '../../components/ui/Icons';
 
 function RecordPaymentModal({ isOpen, onClose, sales }) {
   const qc = useQueryClient();
@@ -77,7 +78,7 @@ function RecordPaymentModal({ isOpen, onClose, sales }) {
         <div>
           <label className="label">Proof of Payment</label>
           <div
-            className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-white/30 transition-colors"
+            className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-text-secondary/30 transition-colors"
             onClick={() => fileRef.current?.click()}
           >
             {proofImage ? (
@@ -133,7 +134,7 @@ export default function PaymentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-white">Payments</h1>
+          <h1 className="font-heading font-bold text-2xl text-text-primary">Payments</h1>
           <p className="text-text-secondary text-sm mt-1">{payments?.length || 0} records</p>
         </div>
         <button className="btn-primary" onClick={() => setAddOpen(true)}>+ Record Payment</button>
@@ -188,7 +189,7 @@ export default function PaymentsPage() {
           <div key={p.id} className="card">
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-medium text-white">{formatCurrency(p.amount)}</p>
+                <p className="font-medium text-text-primary">{formatCurrency(p.amount)}</p>
                 <p className="text-text-tertiary text-xs mt-0.5">{p.method?.replace('_', ' ')} · {p.paidBy?.name}</p>
               </div>
               {p.proofImage ? (
@@ -206,9 +207,10 @@ export default function PaymentsPage() {
       {/* FAB */}
       <button
         onClick={() => setAddOpen(true)}
-        className="lg:hidden fixed bottom-20 right-4 w-14 h-14 bg-white text-black rounded-full flex items-center justify-center text-2xl shadow-lg z-20"
+        className="lg:hidden fixed bottom-20 right-4 w-14 h-14 rounded-full flex items-center justify-center shadow-lg z-20"
+        style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
       >
-        +
+        <IconPlus size={24} />
       </button>
 
       <RecordPaymentModal isOpen={addOpen} onClose={() => setAddOpen(false)} sales={sales} />

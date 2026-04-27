@@ -7,6 +7,7 @@ import { SkeletonCard } from '../../components/ui/Skeleton';
 import Badge from '../../components/ui/Badge';
 import { formatCurrency, formatDate } from '../../utils/format';
 import OutletDashboard from './OutletDashboard';
+import { IconCreditCard, IconPackage, IconTrendingDown, IconBarChart } from '../../components/ui/Icons';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -21,7 +22,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-heading font-bold text-2xl text-white">Dashboard</h1>
+        <h1 className="font-heading font-bold text-2xl text-text-primary">Dashboard</h1>
         <p className="text-text-secondary text-sm mt-1">Overview of your business</p>
       </div>
 
@@ -44,8 +45,8 @@ export default function DashboardPage() {
         <div className="lg:col-span-2">
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading font-semibold text-white">Recent Sales</h2>
-              <Link to="/sales" className="text-text-secondary text-sm hover:text-white">View all →</Link>
+              <h2 className="font-heading font-semibold text-text-primary">Recent Sales</h2>
+              <Link to="/sales" className="text-text-secondary text-sm hover:text-text-primary">View all →</Link>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -78,7 +79,7 @@ export default function DashboardPage() {
         {/* Low Stock Alerts + Quick Actions */}
         <div className="space-y-4">
           <div className="card">
-            <h2 className="font-heading font-semibold text-white mb-3">Low Stock Alerts</h2>
+            <h2 className="font-heading font-semibold text-text-primary mb-3">Low Stock Alerts</h2>
             {data?.lowStock?.length ? (
               <div className="space-y-2">
                 {data.lowStock.map((item) => (
@@ -94,19 +95,19 @@ export default function DashboardPage() {
           </div>
 
           <div className="card">
-            <h2 className="font-heading font-semibold text-white mb-3">Quick Actions</h2>
+            <h2 className="font-heading font-semibold text-text-primary mb-3">Quick Actions</h2>
             <div className="space-y-2">
               <Link to="/sales" className="flex items-center gap-2 w-full btn-secondary text-sm">
-                💳 New Sale
+                <IconCreditCard size={14} /> New Sale
               </Link>
               <Link to="/inventory" className="flex items-center gap-2 w-full btn-secondary text-sm">
-                📦 Assign Stock
+                <IconPackage size={14} /> Assign Stock
               </Link>
               <Link to="/expenses" className="flex items-center gap-2 w-full btn-secondary text-sm">
-                📉 Record Expense
+                <IconTrendingDown size={14} /> Record Expense
               </Link>
               <Link to="/reports" className="flex items-center gap-2 w-full btn-secondary text-sm">
-                📊 View Reports
+                <IconBarChart size={14} /> View Reports
               </Link>
             </div>
           </div>

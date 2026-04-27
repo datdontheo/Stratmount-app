@@ -40,7 +40,7 @@ export default function SettingsPage() {
   return (
     <div className="max-w-lg space-y-6">
       <div>
-        <h1 className="font-heading font-bold text-2xl text-white">Settings</h1>
+        <h1 className="font-heading font-bold text-2xl text-text-primary">Settings</h1>
         <p className="text-text-secondary text-sm mt-1">Business configuration</p>
       </div>
 
@@ -85,11 +85,11 @@ export default function SettingsPage() {
       </form>
 
       <div className="card">
-        <h2 className="font-heading font-semibold text-white mb-3">About</h2>
+        <h2 className="font-heading font-semibold text-text-primary mb-3">About</h2>
         <div className="space-y-2 text-sm text-text-secondary">
-          <div className="flex justify-between"><span>Application</span><span className="text-white">Strat Mount</span></div>
-          <div className="flex justify-between"><span>Version</span><span className="text-white">1.0.0</span></div>
-          <div className="flex justify-between"><span>Region</span><span className="text-white">Ghana · UAE · UK</span></div>
+          <div className="flex justify-between"><span>Application</span><span className="text-text-primary">Strat Mount</span></div>
+          <div className="flex justify-between"><span>Version</span><span className="text-text-primary">1.0.0</span></div>
+          <div className="flex justify-between"><span>Region</span><span className="text-text-primary">Ghana · UAE · UK</span></div>
         </div>
       </div>
 

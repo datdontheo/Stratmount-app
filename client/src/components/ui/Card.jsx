@@ -6,7 +6,7 @@ export default function Card({ children, className = '' }) {
 
 export function StatCard({ label, value, sub, trend, color = 'white' }) {
   const colors = {
-    white: 'text-white',
+    white: 'text-text-primary',
     success: 'text-success',
     danger: 'text-danger',
     warning: 'text-warning',

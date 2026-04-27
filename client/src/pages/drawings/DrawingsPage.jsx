@@ -24,7 +24,7 @@ export default function DrawingsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-white">Drawings</h1>
+          <h1 className="font-heading font-bold text-2xl text-text-primary">Drawings</h1>
           <p className="text-text-secondary text-sm mt-1">Total withdrawn: {formatCurrency(total)}</p>
         </div>
         <button className="btn-primary" onClick={() => setAddOpen(true)}>+ Record Drawing</button>

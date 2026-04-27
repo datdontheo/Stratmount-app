@@ -50,7 +50,7 @@ export default function ProductsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-white">Products</h1>
+          <h1 className="font-heading font-bold text-2xl text-text-primary">Products</h1>
           <p className="text-text-secondary text-sm mt-1">{products?.length || 0} products</p>
         </div>
         <button className="btn-primary" onClick={openAdd}>+ Add Product</button>
@@ -91,7 +91,7 @@ export default function ProductsPage() {
                 <td className="td text-text-secondary">{p.currency}</td>
                 <td className="td">
                   <div className="flex gap-2">
-                    <button onClick={() => openEdit(p)} className="text-text-secondary hover:text-white text-xs">Edit</button>
+                    <button onClick={() => openEdit(p)} className="text-text-secondary hover:text-text-primary text-xs">Edit</button>
                     <button onClick={() => setDeleteTarget(p)} className="text-text-secondary hover:text-danger text-xs">Delete</button>
                   </div>
                 </td>
@@ -110,7 +110,7 @@ export default function ProductsPage() {
           <div key={p.id} className="card">
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-medium text-white">{p.name}</p>
+                <p className="font-medium text-text-primary">{p.name}</p>
                 <p className="text-text-tertiary text-xs mt-0.5">{p.sku} · {p.brand}</p>
               </div>
               <Badge value={p.category} />
@@ -120,7 +120,7 @@ export default function ProductsPage() {
               <div><p className="text-xs text-text-tertiary">Price</p><p className="text-sm">{formatCurrency(p.sellingPrice, p.currency)}</p></div>
             </div>
             <div className="flex gap-3 mt-3 pt-2 border-t border-border">
-              <button onClick={() => openEdit(p)} className="text-text-secondary hover:text-white text-sm">Edit</button>
+              <button onClick={() => openEdit(p)} className="text-text-secondary hover:text-text-primary text-sm">Edit</button>
               <button onClick={() => setDeleteTarget(p)} className="text-text-secondary hover:text-danger text-sm">Delete</button>
             </div>
           </div>

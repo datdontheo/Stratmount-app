@@ -50,7 +50,7 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-white">Reports</h1>
+          <h1 className="font-heading font-bold text-2xl text-text-primary">Reports</h1>
           <p className="text-text-secondary text-sm mt-1">Business analytics & exports</p>
         </div>
         <button onClick={handleExport} className="btn-secondary flex items-center gap-2">
@@ -80,7 +80,7 @@ export default function ReportsPage() {
             key={t}
             onClick={() => setActiveTab(t)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              activeTab === t ? 'border-white text-white' : 'border-transparent text-text-secondary hover:text-white'
+              activeTab === t ? 'border-[var(--accent)] text-text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'
             }`}
           >
             {t}
@@ -191,7 +191,7 @@ export default function ReportsPage() {
                 <tr><td className="py-3 text-text-secondary pl-4">— Expenses</td><td className="py-3 text-right text-danger">({formatCurrency(plReport.totalExpenses)})</td></tr>
                 <tr><td className="py-3 text-text-secondary pl-4">— Owner Drawings</td><td className="py-3 text-right text-warning">({formatCurrency(plReport.totalDrawings)})</td></tr>
                 <tr><td className="py-3 text-text-secondary pl-4">FX Gain / Loss</td><td className={`py-3 text-right ${plReport.fxGainLoss >= 0 ? 'text-success' : 'text-danger'}`}>{formatCurrency(plReport.fxGainLoss)}</td></tr>
-                <tr className="font-bold border-t-2 border-border"><td className="py-3 text-white">Net Profit</td><td className={`py-3 text-right text-lg ${plReport.netProfit >= 0 ? 'text-success' : 'text-danger'}`}>{formatCurrency(plReport.netProfit)}</td></tr>
+                <tr className="font-bold border-t-2 border-border"><td className="py-3 text-text-primary">Net Profit</td><td className={`py-3 text-right text-lg ${plReport.netProfit >= 0 ? 'text-success' : 'text-danger'}`}>{formatCurrency(plReport.netProfit)}</td></tr>
               </tbody>
             </table>
           </div>
@@ -203,7 +203,7 @@ export default function ReportsPage() {
         <div className="space-y-4">
           {/* By category */}
           <div className="card">
-            <h3 className="font-heading font-semibold text-white mb-4">By Category</h3>
+            <h3 className="font-heading font-semibold text-text-primary mb-4">By Category</h3>
             <div className="space-y-2">
               {Object.entries(expensesReport.byCategory || {}).map(([cat, amt]) => (
                 <div key={cat} className="flex items-center justify-between py-2 border-b border-border last:border-0">

@@ -44,7 +44,7 @@ export default function ExpensesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-white">Expenses</h1>
+          <h1 className="font-heading font-bold text-2xl text-text-primary">Expenses</h1>
           <p className="text-text-secondary text-sm mt-1">Total: {formatCurrency(totalAmount)}</p>
         </div>
         <button className="btn-primary" onClick={openAdd}>+ Add Expense</button>
@@ -52,9 +52,9 @@ export default function ExpensesPage() {
 
       {/* Category filters */}
       <div className="flex gap-2 flex-wrap">
-        <button onClick={() => setCatFilter('')} className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${!catFilter ? 'bg-white text-black font-semibold' : 'bg-bg-tertiary text-text-secondary hover:text-white'}`}>All</button>
+        <button onClick={() => setCatFilter('')} className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${!catFilter ? 'font-semibold' : 'bg-bg-tertiary text-text-secondary hover:text-text-primary'}`} style={!catFilter ? { backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' } : {}}>All</button>
         {CATEGORIES.map((c) => (
-          <button key={c} onClick={() => setCatFilter(c)} className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${catFilter === c ? 'bg-white text-black font-semibold' : 'bg-bg-tertiary text-text-secondary hover:text-white'}`}>{c}</button>
+          <button key={c} onClick={() => setCatFilter(c)} className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${catFilter === c ? 'font-semibold' : 'bg-bg-tertiary text-text-secondary hover:text-text-primary'}`} style={catFilter === c ? { backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' } : {}}>{c}</button>
         ))}
       </div>
 
@@ -81,7 +81,7 @@ export default function ExpensesPage() {
                 <td className="td text-text-secondary">{e.notes || '—'}</td>
                 <td className="td">
                   <div className="flex gap-2">
-                    <button onClick={() => openEdit(e)} className="text-text-secondary hover:text-white text-xs">Edit</button>
+                    <button onClick={() => openEdit(e)} className="text-text-secondary hover:text-text-primary text-xs">Edit</button>
                     <button onClick={() => setDeleteTarget(e)} className="text-text-secondary hover:text-danger text-xs">Delete</button>
                   </div>
                 </td>
@@ -100,7 +100,7 @@ export default function ExpensesPage() {
           <div key={e.id} className="card">
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-medium text-white">{e.description}</p>
+                <p className="font-medium text-text-primary">{e.description}</p>
                 <p className="text-text-tertiary text-xs mt-0.5">{e.category} · {formatDate(e.date)}</p>
               </div>
               <p className="text-danger font-medium">{formatCurrency(e.amount)}</p>

@@ -8,6 +8,7 @@ import Modal from '../../components/ui/Modal';
 import Badge from '../../components/ui/Badge';
 import { formatCurrency, formatDate } from '../../utils/format';
 import { SkeletonRow } from '../../components/ui/Skeleton';
+import { IconX, IconPlus, IconChevronRight } from '../../components/ui/Icons';
 
 function NewSaleModal({ isOpen, onClose, products, customers }) {
   const qc = useQueryClient();
@@ -64,7 +65,7 @@ function NewSaleModal({ isOpen, onClose, products, customers }) {
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="label mb-0">Items</label>
-            <button onClick={addItem} className="text-text-secondary hover:text-white text-sm">+ Add item</button>
+            <button onClick={addItem} className="text-text-secondary hover:text-text-primary text-sm">+ Add item</button>
           </div>
           <div className="space-y-2">
             {form.items.map((item, idx) => (
@@ -85,7 +86,7 @@ function NewSaleModal({ isOpen, onClose, products, customers }) {
                   {formatCurrency(item.quantity * item.unitPrice)}
                 </div>
                 <div className="col-span-1 text-right">
-                  {form.items.length > 1 && <button onClick={() => removeItem(idx)} className="text-danger text-sm">✕</button>}
+                  {form.items.length > 1 && <button onClick={() => removeItem(idx)} className="text-danger text-sm"><IconX size={14} /></button>}
                 </div>
               </div>
             ))}
@@ -152,7 +153,7 @@ export default function SalesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-white">Sales</h1>
+          <h1 className="font-heading font-bold text-2xl text-text-primary">Sales</h1>
           <p className="text-text-secondary text-sm mt-1">{sales?.length || 0} records</p>
         </div>
         <button className="btn-primary" onClick={() => setAddOpen(true)}>+ New Sale</button>
@@ -161,7 +162,8 @@ export default function SalesPage() {
       <div className="flex gap-2 flex-wrap">
         {['', 'PENDING', 'PARTIAL', 'PAID'].map((s) => (
           <button key={s} onClick={() => setStatusFilter(s)}
-            className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${statusFilter === s ? 'bg-white text-black font-semibold' : 'bg-bg-tertiary text-text-secondary hover:text-white'}`}>
+            className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${statusFilter === s ? 'font-semibold' : 'bg-bg-tertiary text-text-secondary hover:text-text-primary'}`}
+            style={statusFilter === s ? { backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' } : {}}>
             {s || 'All'}
           </button>
         ))}
@@ -193,7 +195,7 @@ export default function SalesPage() {
                 <td className="td text-danger">{formatCurrency(sale.balance)}</td>
                 <td className="td"><Badge value={sale.status} /></td>
                 <td className="td">
-                  <Link to={`/sales/${sale.id}`} className="text-text-secondary hover:text-white text-xs">View →</Link>
+                  <Link to={`/sales/${sale.id}`} className="text-text-secondary hover:text-text-primary text-xs flex items-center gap-1">View <IconChevronRight size={12} /></Link>
                 </td>
               </tr>
             ))}
@@ -210,7 +212,7 @@ export default function SalesPage() {
           <Link key={sale.id} to={`/sales/${sale.id}`} className="card block hover:bg-bg-tertiary transition-colors">
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-medium text-white">{sale.customer?.name || 'Walk-in'}</p>
+                <p className="font-medium text-text-primary">{sale.customer?.name || 'Walk-in'}</p>
                 <p className="text-text-tertiary text-xs mt-0.5">{formatDate(sale.saleDate)} · {sale.soldBy?.name}</p>
               </div>
               <Badge value={sale.status} />
@@ -227,9 +229,10 @@ export default function SalesPage() {
       {/* FAB mobile */}
       <button
         onClick={() => setAddOpen(true)}
-        className="lg:hidden fixed bottom-20 right-4 w-14 h-14 bg-white text-black rounded-full flex items-center justify-center text-2xl shadow-lg z-20"
+        className="lg:hidden fixed bottom-20 right-4 w-14 h-14 rounded-full flex items-center justify-center shadow-lg z-20"
+        style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
       >
-        +
+        <IconPlus size={24} />
       </button>
 
       <NewSaleModal isOpen={addOpen} onClose={() => setAddOpen(false)} products={products} customers={customers} />

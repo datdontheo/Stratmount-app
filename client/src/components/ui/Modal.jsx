@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { IconX } from './Icons';
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md' }) {
   useEffect(() => {
@@ -17,12 +18,12 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
       <div className={`relative bg-bg-secondary border border-border rounded-xl w-full ${sizes[size]} max-h-[90vh] flex flex-col shadow-2xl`}>
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <h2 className="font-heading font-semibold text-white text-lg">{title}</h2>
+            <h2 className="font-heading font-semibold text-text-primary text-lg">{title}</h2>
             <button
               onClick={onClose}
-              className="text-text-secondary hover:text-white transition-colors w-8 h-8 flex items-center justify-center rounded-lg hover:bg-bg-tertiary"
+              className="text-text-secondary hover:text-text-primary transition-colors w-8 h-8 flex items-center justify-center rounded-lg hover:bg-bg-tertiary"
             >
-              ✕
+              <IconX size={16} />
             </button>
           </div>
         )}

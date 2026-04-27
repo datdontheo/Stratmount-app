@@ -40,7 +40,7 @@ export default function CustomersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-white">Customers</h1>
+          <h1 className="font-heading font-bold text-2xl text-text-primary">Customers</h1>
           <p className="text-text-secondary text-sm mt-1">{customers?.length || 0} customers</p>
         </div>
         <button className="btn-primary" onClick={openAdd}>+ Add Customer</button>
@@ -68,8 +68,8 @@ export default function CustomersPage() {
                 <td className="td text-text-secondary">{c._count?.sales || 0} sales</td>
                 <td className="td">
                   <div className="flex gap-2">
-                    <button onClick={() => setStatementCustomer(c)} className="text-text-secondary hover:text-white text-xs">Statement</button>
-                    <button onClick={() => openEdit(c)} className="text-text-secondary hover:text-white text-xs">Edit</button>
+                    <button onClick={() => setStatementCustomer(c)} className="text-text-secondary hover:text-text-primary text-xs">Statement</button>
+                    <button onClick={() => openEdit(c)} className="text-text-secondary hover:text-text-primary text-xs">Edit</button>
                   </div>
                 </td>
               </tr>
@@ -87,14 +87,14 @@ export default function CustomersPage() {
           <div key={c.id} className="card">
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-medium text-white">{c.name}</p>
+                <p className="font-medium text-text-primary">{c.name}</p>
                 <p className="text-text-tertiary text-xs mt-0.5">{c.phone || c.email || '—'}</p>
               </div>
               <span className="text-xs bg-bg-tertiary px-2 py-0.5 rounded text-text-secondary">{c.type}</span>
             </div>
             <div className="flex gap-3 mt-3 pt-2 border-t border-border">
-              <button onClick={() => setStatementCustomer(c)} className="text-text-secondary hover:text-white text-sm">Statement</button>
-              <button onClick={() => openEdit(c)} className="text-text-secondary hover:text-white text-sm">Edit</button>
+              <button onClick={() => setStatementCustomer(c)} className="text-text-secondary hover:text-text-primary text-sm">Statement</button>
+              <button onClick={() => openEdit(c)} className="text-text-secondary hover:text-text-primary text-sm">Edit</button>
             </div>
           </div>
         ))}
@@ -128,7 +128,7 @@ export default function CustomersPage() {
               <div key={sale.id} className="bg-bg-tertiary rounded-lg p-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-white">{formatDate(sale.saleDate)}</p>
+                    <p className="font-medium text-text-primary">{formatDate(sale.saleDate)}</p>
                     <p className="text-text-secondary text-xs mt-0.5">{sale.items?.map((i) => i.product?.name).join(', ')}</p>
                   </div>
                   <Badge value={sale.status} />

@@ -106,7 +106,7 @@ export default function InventoryPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-white">Inventory</h1>
+          <h1 className="font-heading font-bold text-2xl text-text-primary">Inventory</h1>
           <p className="text-text-secondary text-sm mt-1">
             {isOutlet ? 'Your assigned stock' : 'All stock locations'}
           </p>
@@ -125,8 +125,9 @@ export default function InventoryPage() {
             key={cat}
             onClick={() => setCategoryFilter(cat)}
             className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-              categoryFilter === cat ? 'bg-white text-black font-semibold' : 'bg-bg-tertiary text-text-secondary hover:text-white'
+              categoryFilter === cat ? 'font-semibold' : 'bg-bg-tertiary text-text-secondary hover:text-text-primary'
             }`}
+            style={categoryFilter === cat ? { backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' } : {}}
           >
             {cat || 'All'}
           </button>
@@ -201,14 +202,14 @@ export default function InventoryPage() {
           <div key={item.id} className="card">
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-medium text-white">{item.product.name}</p>
+                <p className="font-medium text-text-primary">{item.product.name}</p>
                 <p className="text-text-tertiary text-xs mt-0.5">{item.product.sku}</p>
               </div>
               <Badge value={item.product.category} />
             </div>
             <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
               <span className="text-text-secondary text-sm">Quantity</span>
-              <span className={`font-medium ${item.quantity <= 3 ? 'text-danger' : 'text-white'}`}>
+              <span className={`font-medium ${item.quantity <= 3 ? 'text-danger' : 'text-text-primary'}`}>
                 {item.quantity} {item.product.unit}s
               </span>
             </div>

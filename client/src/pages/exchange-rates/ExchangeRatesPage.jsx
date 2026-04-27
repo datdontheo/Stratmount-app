@@ -23,7 +23,7 @@ export default function ExchangeRatesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-white">Exchange Rates</h1>
+          <h1 className="font-heading font-bold text-2xl text-text-primary">Exchange Rates</h1>
           <p className="text-text-secondary text-sm mt-1">Current rates relative to GHS</p>
         </div>
         <button className="btn-primary" onClick={() => setAddOpen(true)}>+ Set Rate</button>
@@ -34,7 +34,7 @@ export default function ExchangeRatesPage() {
         {['USD', 'GBP', 'AED'].map((c) => (
           <div key={c} className="card text-center">
             <p className="text-text-secondary text-sm">1 {c}</p>
-            <p className="font-heading font-bold text-2xl text-white mt-1">
+            <p className="font-heading font-bold text-2xl text-text-primary mt-1">
               GH₵ {current?.[c]?.toFixed(2) || '—'}
             </p>
           </div>
@@ -43,7 +43,7 @@ export default function ExchangeRatesPage() {
 
       {/* History */}
       <div className="card overflow-x-auto">
-        <h2 className="font-heading font-semibold text-white mb-4">Rate History</h2>
+        <h2 className="font-heading font-semibold text-text-primary mb-4">Rate History</h2>
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
