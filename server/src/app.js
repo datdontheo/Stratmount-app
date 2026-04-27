@@ -28,6 +28,7 @@ app.use('/api/drawings', require('./routes/drawings.routes'));
 app.use('/api/exchange-rates', require('./routes/exchangeRates.routes'));
 app.use('/api/reports', require('./routes/reports.routes'));
 
+app.use('/api/seed', require('./routes/seed.routes'));
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use((err, req, res, next) => {
