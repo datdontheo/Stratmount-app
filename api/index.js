@@ -1,10 +1,8 @@
 const path = require('path');
-const { execSync } = require('child_process');
 
-// Default to SQLite in /tmp — no database setup needed
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'file:/tmp/stratmount.db';
+// Defaults — DATABASE_URL must be set in Vercel env vars (Supabase connection string)
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'stratmount_demo_secret_change_for_production';
-process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+process.env.NODE_ENV   = process.env.NODE_ENV   || 'production';
 
 require('dotenv').config();
 
@@ -12,18 +10,6 @@ let _ready = false;
 
 async function ensureReady() {
   if (_ready) return;
-
-  try {
-    // Push schema to SQLite file (creates it if missing, safe to re-run)
-    const prismaPath = path.resolve(__dirname, '../node_modules/.bin/prisma');
-    const schemaPath = path.resolve(__dirname, '../server/prisma/schema.prisma');
-    execSync(`"${prismaPath}" db push --schema="${schemaPath}" --skip-generate --accept-data-loss`, {
-      env: process.env,
-      stdio: 'pipe',
-    });
-  } catch (e) {
-    console.error('Schema push failed:', e.message);
-  }
 
   // Auto-seed if the database is empty
   try {
@@ -33,7 +19,7 @@ async function ensureReady() {
     if (count === 0) await runSeed(prisma);
     await prisma.$disconnect();
   } catch (e) {
-    console.error('Seed failed:', e.message);
+    console.error('Seed check failed:', e.message);
   }
 
   _ready = true;
@@ -74,15 +60,15 @@ async function runSeed(prisma) {
   });
 
   await Promise.all([
-    prisma.inventory.create({ data: { productId: dior.id, quantity: 20, location: 'WAREHOUSE' } }),
-    prisma.inventory.create({ data: { productId: creed.id, quantity: 15, location: 'WAREHOUSE' } }),
-    prisma.inventory.create({ data: { productId: chanel.id, quantity: 25, location: 'WAREHOUSE' } }),
-    prisma.inventory.create({ data: { productId: oud.id, quantity: 30, location: 'WAREHOUSE' } }),
+    prisma.inventory.create({ data: { productId: dior.id,    quantity: 20, location: 'WAREHOUSE' } }),
+    prisma.inventory.create({ data: { productId: creed.id,   quantity: 15, location: 'WAREHOUSE' } }),
+    prisma.inventory.create({ data: { productId: chanel.id,  quantity: 25, location: 'WAREHOUSE' } }),
+    prisma.inventory.create({ data: { productId: oud.id,     quantity: 30, location: 'WAREHOUSE' } }),
     prisma.inventory.create({ data: { productId: earbuds.id, quantity: 40, location: 'WAREHOUSE' } }),
-    prisma.inventory.create({ data: { productId: dior.id, quantity: 5, location: `OUTLET_${outlet1.id}`, holderId: outlet1.id } }),
-    prisma.inventory.create({ data: { productId: creed.id, quantity: 3, location: `OUTLET_${outlet1.id}`, holderId: outlet1.id } }),
-    prisma.inventory.create({ data: { productId: chanel.id, quantity: 8, location: `OUTLET_${outlet2.id}`, holderId: outlet2.id } }),
-    prisma.inventory.create({ data: { productId: oud.id, quantity: 10, location: `OUTLET_${outlet2.id}`, holderId: outlet2.id } }),
+    prisma.inventory.create({ data: { productId: dior.id,    quantity: 5,  location: `OUTLET_${outlet1.id}`, holderId: outlet1.id } }),
+    prisma.inventory.create({ data: { productId: creed.id,   quantity: 3,  location: `OUTLET_${outlet1.id}`, holderId: outlet1.id } }),
+    prisma.inventory.create({ data: { productId: chanel.id,  quantity: 8,  location: `OUTLET_${outlet2.id}`, holderId: outlet2.id } }),
+    prisma.inventory.create({ data: { productId: oud.id,     quantity: 10, location: `OUTLET_${outlet2.id}`, holderId: outlet2.id } }),
   ]);
 
   const cust1 = await prisma.customer.create({ data: { name: 'Kwame Mensah', phone: '+233 24 555 0001', type: 'DIRECT' } });
@@ -92,7 +78,10 @@ async function runSeed(prisma) {
     data: {
       supplierId: uae.id, invoiceNumber: 'INV-UAE-001', purchaseDate: new Date('2024-01-15'),
       currency: 'AED', exchangeRate: 3.95, totalForeign: 5000, totalGHS: 19750,
-      items: { create: [{ productId: dior.id, quantity: 10, unitCost: 250, totalCost: 2500 }, { productId: creed.id, quantity: 10, unitCost: 250, totalCost: 2500 }] },
+      items: { create: [
+        { productId: dior.id,  quantity: 10, unitCost: 250, totalCost: 2500 },
+        { productId: creed.id, quantity: 10, unitCost: 250, totalCost: 2500 },
+      ]},
     },
   });
 
@@ -100,7 +89,11 @@ async function runSeed(prisma) {
     data: {
       customerId: cust1.id, soldById: admin.id, saleDate: new Date('2024-03-01'),
       totalAmount: 370, amountPaid: 370, balance: 0, status: 'PAID',
-      items: { create: [{ productId: dior.id, quantity: 1, unitPrice: 185, total: 185 }, { productId: chanel.id, quantity: 1, unitPrice: 150, total: 150 }, { productId: earbuds.id, quantity: 1, unitPrice: 90, total: 90 }] },
+      items: { create: [
+        { productId: dior.id,    quantity: 1, unitPrice: 185, total: 185 },
+        { productId: chanel.id,  quantity: 1, unitPrice: 150, total: 150 },
+        { productId: earbuds.id, quantity: 1, unitPrice: 90,  total: 90  },
+      ]},
       payments: { create: [{ paidById: admin.id, amount: 370, method: 'MOBILE_MONEY', paymentDate: new Date('2024-03-01') }] },
     },
   });
@@ -123,11 +116,9 @@ async function runSeed(prisma) {
   });
 
   await prisma.drawing.create({ data: { amount: 2000, description: 'Owner withdrawal - January', date: new Date('2024-01-31') } });
-
   console.log('✅ Database seeded');
 }
 
-// Load the Express app and wrap it so the DB is ready before handling requests
 const app = require('../server/src/app');
 
 module.exports = async (req, res) => {
