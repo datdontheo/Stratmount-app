@@ -70,11 +70,17 @@ export default function PurchasesPage() {
   useEffect(() => {
     if (!currentRates) return;
     if (currency === 'AED') {
-      const aedToGHS = currentRates['AED'] || '';
       const usdToGHS = currentRates['USD'] || '';
       if (usdToGHS && !exchangeRate) setExchangeRate(String(usdToGHS));
-      if (aedToGHS && usdToGHS && Number(usdToGHS) > 0 && !intermediaryRate) {
-        setIntermediaryRate(String((Number(aedToGHS) / Number(usdToGHS)).toFixed(4)));
+      if (!intermediaryRate) {
+        if (currentRates.aedToUSD) {
+          setIntermediaryRate(String(currentRates.aedToUSD));
+        } else {
+          const aedToGHS = currentRates['AED'] || '';
+          if (aedToGHS && usdToGHS && Number(usdToGHS) > 0) {
+            setIntermediaryRate(String((Number(aedToGHS) / Number(usdToGHS)).toFixed(4)));
+          }
+        }
       }
     } else {
       const rate = currentRates[currency];
@@ -176,6 +182,7 @@ export default function PurchasesPage() {
             <div>
               <label className="label">AED → USD Rate</label>
               <input type="number" step="0.0001" className="input" value={intermediaryRate} onChange={(e) => setIntermediaryRate(e.target.value)} placeholder="e.g. 0.2722" />
+              {currentRates?.aedToUSD && <p className="text-text-tertiary text-xs mt-1">Saved rate: {currentRates.aedToUSD} (auto-filled)</p>}
             </div>
           )}
           <div>
