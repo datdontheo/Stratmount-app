@@ -6,6 +6,7 @@ import { formatCurrency, formatDate } from '../../utils/format';
 import { IconPlus, IconX, IconShoppingCart } from '../../components/ui/Icons';
 
 const CURRENCIES = ['AED', 'USD', 'GBP', 'EUR'];
+const CATEGORIES = ['All', 'PERFUME', 'GADGET', 'OTHER'];
 const DEFAULT_MARGIN = 20;
 
 function emptyItem() {
@@ -46,10 +47,24 @@ export default function PurchasesPage() {
   const [notes, setNotes] = useState('');
   const [rows, setRows] = useState([emptyItem()]);
 
+  // Product search / category filter for the products table
+  const [productSearch, setProductSearch] = useState('');
+  const [productCategory, setProductCategory] = useState('All');
+
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/suppliers') });
   const { data: products } = useQuery({ queryKey: ['products'], queryFn: () => api.get('/products') });
   const { data: history } = useQuery({ queryKey: ['purchases'], queryFn: () => api.get('/purchases'), enabled: showHistory });
   const { data: currentRates } = useQuery({ queryKey: ['exchange-rates-current'], queryFn: () => api.get('/exchange-rates/current') });
+
+  // Filtered product list for dropdowns
+  const filteredProducts = (products || []).filter((p) => {
+    const matchesSearch = !productSearch ||
+      p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+      p.sku.toLowerCase().includes(productSearch.toLowerCase()) ||
+      (p.brand || '').toLowerCase().includes(productSearch.toLowerCase());
+    const matchesCategory = productCategory === 'All' || p.category === productCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   // Auto-fill exchange rate when currency changes — only if field is currently empty
   useEffect(() => {
@@ -86,6 +101,7 @@ export default function PurchasesPage() {
       setIntermediaryRate(''); setExchangeRate(''); setShippingCostForeign(0); setNotes('');
       setRows([emptyItem()]);
       setPurchaseDate(new Date().toISOString().slice(0, 10));
+      setProductSearch(''); setProductCategory('All');
     },
     onError: (err) => toast.error(err.error || 'Failed to save shipment'),
   });
@@ -193,6 +209,36 @@ export default function PurchasesPage() {
       {/* Products Table */}
       <div className="card space-y-4">
         <h2 className="font-heading font-semibold text-text-primary">Products</h2>
+
+        {/* Product search + category filter */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input
+            className="input sm:max-w-xs"
+            placeholder="Search products by name, SKU, brand..."
+            value={productSearch}
+            onChange={(e) => setProductSearch(e.target.value)}
+          />
+          <div className="flex gap-2 flex-wrap">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setProductCategory(cat)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  productCategory === cat ? 'font-semibold' : 'bg-bg-tertiary text-text-secondary hover:text-text-primary'
+                }`}
+                style={productCategory === cat ? { backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' } : {}}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+          {(productSearch || productCategory !== 'All') && (
+            <span className="text-text-tertiary text-xs self-center">
+              {filteredProducts.length} of {(products || []).length} products
+            </span>
+          )}
+        </div>
+
         <div className="overflow-x-auto -mx-4 px-4">
           <table className="w-full text-sm min-w-[900px]">
             <thead>
@@ -213,10 +259,23 @@ export default function PurchasesPage() {
                 const c = computed[i] || {};
                 return (
                   <tr key={i} className="border-b border-border">
-                    <td className="td min-w-[160px]">
-                      <select className="input text-xs py-1.5" value={row.productId} onChange={(e) => updateRow(i, 'productId', e.target.value)}>
-                        <option value="">Select product</option>
-                        {(products || []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    <td className="td min-w-[200px]">
+                      <select
+                        className="input text-xs py-1.5"
+                        value={row.productId}
+                        onChange={(e) => updateRow(i, 'productId', e.target.value)}
+                      >
+                        <option value="">— Select product —</option>
+                        {filteredProducts.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}{p.brand ? ` (${p.brand})` : ''} [{p.category}]
+                          </option>
+                        ))}
+                        {/* If the row has a product not in the filter, always show it */}
+                        {row.productId && !filteredProducts.find((p) => p.id === row.productId) && (() => {
+                          const sel = (products || []).find((p) => p.id === row.productId);
+                          return sel ? <option key={sel.id} value={sel.id}>{sel.name} ⚠ (outside filter)</option> : null;
+                        })()}
                       </select>
                     </td>
                     <td className="td">

@@ -3,11 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import Modal from '../../components/ui/Modal';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 import { formatCurrency, formatDate } from '../../utils/format';
 
 export default function DrawingsPage() {
   const qc = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState({ amount: '', description: '', date: new Date().toISOString().split('T')[0] });
 
   const { data: drawings } = useQuery({ queryKey: ['drawings'], queryFn: () => api.get('/drawings') });
@@ -16,8 +18,14 @@ export default function DrawingsPage() {
 
   const add = useMutation({
     mutationFn: (data) => api.post('/drawings', data),
-    onSuccess: () => { toast.success('Drawing recorded'); qc.invalidateQueries(['drawings']); setAddOpen(false); setForm({ amount: '', description: '', date: new Date().toISOString().split('T')[0] }); },
+    onSuccess: () => { toast.success('Drawing recorded'); qc.invalidateQueries({ queryKey: ['drawings'] }); setAddOpen(false); setForm({ amount: '', description: '', date: new Date().toISOString().split('T')[0] }); },
     onError: (err) => toast.error(err.error || 'Failed'),
+  });
+
+  const del = useMutation({
+    mutationFn: (id) => api.delete(`/drawings/${id}`),
+    onSuccess: () => { toast.success('Drawing deleted'); qc.invalidateQueries({ queryKey: ['drawings'] }); setDeleteTarget(null); },
+    onError: (err) => toast.error(err.error || 'Failed to delete'),
   });
 
   return (
@@ -37,6 +45,7 @@ export default function DrawingsPage() {
               <th className="th">Date</th>
               <th className="th">Description</th>
               <th className="th">Amount</th>
+              <th className="th"></th>
             </tr>
           </thead>
           <tbody>
@@ -45,10 +54,13 @@ export default function DrawingsPage() {
                 <td className="td text-text-secondary">{formatDate(d.date)}</td>
                 <td className="td">{d.description || '—'}</td>
                 <td className="td font-medium text-warning">{formatCurrency(d.amount)}</td>
+                <td className="td">
+                  <button onClick={() => setDeleteTarget(d)} className="text-text-secondary hover:text-danger text-xs">Delete</button>
+                </td>
               </tr>
             ))}
             {!drawings?.length && (
-              <tr><td colSpan={3} className="td text-center text-text-tertiary py-8">No drawings recorded</td></tr>
+              <tr><td colSpan={4} className="td text-center text-text-tertiary py-8">No drawings recorded</td></tr>
             )}
           </tbody>
         </table>
@@ -67,6 +79,16 @@ export default function DrawingsPage() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => del.mutate(deleteTarget.id)}
+        title="Delete Drawing"
+        message={`Delete drawing of ${deleteTarget ? formatCurrency(deleteTarget.amount) : ''}${deleteTarget?.description ? ` — "${deleteTarget.description}"` : ''}? This cannot be undone.`}
+        confirmLabel="Delete"
+        danger
+      />
     </div>
   );
 }

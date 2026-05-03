@@ -17,6 +17,9 @@ export default function ProductsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+
+  const CATEGORIES = ['All', 'PERFUME', 'GADGET', 'OTHER'];
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products'],
@@ -59,9 +62,14 @@ export default function ProductsPage() {
     setDrawerOpen(true);
   };
 
-  const filtered = (products || []).filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = (products || []).filter((p) => {
+    const matchesSearch = !search ||
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.sku.toLowerCase().includes(search.toLowerCase()) ||
+      (p.brand || '').toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = categoryFilter === 'All' || p.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
 
   const margin = (p) => p.costPrice > 0 ? (((p.sellingPrice - p.costPrice) / p.costPrice) * 100).toFixed(0) + '%' : '—';
 
@@ -75,12 +83,26 @@ export default function ProductsPage() {
         <button className="btn-primary" onClick={openAdd}>+ Add Product</button>
       </div>
 
-      <input
-        className="input max-w-sm"
-        placeholder="Search by name or SKU..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div className="flex flex-wrap gap-3 items-center">
+        <input
+          className="input max-w-sm"
+          placeholder="Search by name, SKU or brand..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <div className="flex gap-2">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${categoryFilter === cat ? 'font-semibold' : 'bg-bg-tertiary text-text-secondary hover:text-text-primary'}`}
+              style={categoryFilter === cat ? { backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' } : {}}
+            >
+              {cat === 'All' ? 'All' : cat.charAt(0) + cat.slice(1).toLowerCase()}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Desktop */}
       <div className="card hidden lg:block overflow-x-auto">

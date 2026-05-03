@@ -162,7 +162,7 @@ export default function PaymentsPage() {
             {(payments || []).map((p) => (
               <tr key={p.id} className="table-row">
                 <td className="td font-medium">{p.paidBy?.name}</td>
-                <td className="td text-text-secondary">{p.sale?.customer?.name || p.sale ? 'Sale' : '—'}</td>
+                <td className="td text-text-secondary">{p.sale ? (p.sale.customer?.name || 'Walk-in') : '—'}</td>
                 <td className="td font-medium text-success">{formatCurrency(p.amount)}</td>
                 <td className="td">
                   <span className="text-xs bg-bg-tertiary px-2 py-0.5 rounded text-text-secondary">

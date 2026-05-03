@@ -15,6 +15,7 @@ export default function CustomersPage() {
   const [editCustomer, setEditCustomer] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [statementCustomer, setStatementCustomer] = useState(null);
+  const [search, setSearch] = useState('');
 
   const { data: customers, isLoading } = useQuery({
     queryKey: ['customers'],
@@ -36,6 +37,16 @@ export default function CustomersPage() {
   const openAdd = () => { setEditCustomer(null); setForm(emptyForm); setDrawerOpen(true); };
   const openEdit = (c) => { setEditCustomer(c); setForm({ ...c }); setDrawerOpen(true); };
 
+  const filtered = (customers || []).filter((c) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(q) ||
+      (c.phone || '').toLowerCase().includes(q) ||
+      (c.email || '').toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -45,6 +56,13 @@ export default function CustomersPage() {
         </div>
         <button className="btn-primary" onClick={openAdd}>+ Add Customer</button>
       </div>
+
+      <input
+        className="input max-w-sm"
+        placeholder="Search by name, phone or email..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
 
       <div className="card hidden lg:block overflow-x-auto">
         <table className="w-full">
@@ -59,7 +77,7 @@ export default function CustomersPage() {
             </tr>
           </thead>
           <tbody>
-            {(customers || []).map((c) => (
+            {filtered.map((c) => (
               <tr key={c.id} className="table-row">
                 <td className="td font-medium">{c.name}</td>
                 <td className="td text-text-secondary">{c.phone || '—'}</td>
@@ -74,8 +92,8 @@ export default function CustomersPage() {
                 </td>
               </tr>
             ))}
-            {!isLoading && !customers?.length && (
-              <tr><td colSpan={6} className="td text-center text-text-tertiary py-8">No customers yet</td></tr>
+            {!isLoading && !filtered.length && (
+              <tr><td colSpan={6} className="td text-center text-text-tertiary py-8">No customers found</td></tr>
             )}
           </tbody>
         </table>
@@ -83,7 +101,7 @@ export default function CustomersPage() {
 
       {/* Mobile */}
       <div className="lg:hidden space-y-3">
-        {(customers || []).map((c) => (
+        {filtered.map((c) => (
           <div key={c.id} className="card">
             <div className="flex items-start justify-between">
               <div>

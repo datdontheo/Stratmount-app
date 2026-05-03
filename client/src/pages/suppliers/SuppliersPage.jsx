@@ -14,6 +14,7 @@ export default function SuppliersPage() {
   const [editSupplier, setEditSupplier] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [historySupplier, setHistorySupplier] = useState(null);
+  const [search, setSearch] = useState('');
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/suppliers') });
 
@@ -32,6 +33,17 @@ export default function SuppliersPage() {
   const openAdd = () => { setEditSupplier(null); setForm(emptyForm); setDrawerOpen(true); };
   const openEdit = (s) => { setEditSupplier(s); setForm({ ...s }); setDrawerOpen(true); };
 
+  const filtered = (suppliers || []).filter((s) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      s.name.toLowerCase().includes(q) ||
+      (s.country || '').toLowerCase().includes(q) ||
+      (s.contact || '').toLowerCase().includes(q) ||
+      (s.email || '').toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -41,6 +53,13 @@ export default function SuppliersPage() {
         </div>
         <button className="btn-primary" onClick={openAdd}>+ Add Supplier</button>
       </div>
+
+      <input
+        className="input max-w-sm"
+        placeholder="Search by name, country or contact..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
 
       <div className="card hidden lg:block overflow-x-auto">
         <table className="w-full">
@@ -55,7 +74,7 @@ export default function SuppliersPage() {
             </tr>
           </thead>
           <tbody>
-            {(suppliers || []).map((s) => (
+            {filtered.map((s) => (
               <tr key={s.id} className="table-row">
                 <td className="td font-medium">{s.name}</td>
                 <td className="td text-text-secondary">{s.country || '—'}</td>
@@ -76,7 +95,7 @@ export default function SuppliersPage() {
 
       {/* Mobile */}
       <div className="lg:hidden space-y-3">
-        {(suppliers || []).map((s) => (
+        {filtered.map((s) => (
           <div key={s.id} className="card">
             <div className="flex items-start justify-between">
               <div>
