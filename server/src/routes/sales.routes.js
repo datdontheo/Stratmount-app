@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const { authenticate } = require('../middleware/auth.middleware');
+const PDFDocument = require('pdfkit');
 
 const prisma = new PrismaClient();
 
@@ -138,6 +139,101 @@ router.get('/:id/receipt', async (req, res) => {
     });
     if (!sale) return res.status(404).json({ error: 'Sale not found' });
     res.json(sale);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/:id/pdf', async (req, res) => {
+  try {
+    const sale = await prisma.sale.findUnique({
+      where: { id: req.params.id },
+      include: {
+        customer: true,
+        soldBy: { select: { name: true } },
+        items: { include: { product: true } },
+      },
+    });
+    if (!sale) return res.status(404).json({ error: 'Sale not found' });
+
+    const doc = new PDFDocument({ size: [400, 600], margin: 30, autoFirstPage: true });
+    const receiptId = req.params.id.slice(-8).toUpperCase();
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="receipt-${receiptId}.pdf"`);
+    doc.pipe(res);
+
+    const fmt = (n) => `GH₵ ${(Number(n) || 0).toFixed(2)}`;
+    const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    // Header
+    doc.fontSize(16).font('Helvetica-Bold').text('STRAT MOUNT', { align: 'center' });
+    doc.fontSize(9).font('Helvetica').fillColor('#666').text('Business Management', { align: 'center' });
+    doc.moveDown(0.5);
+    doc.moveTo(30, doc.y).lineTo(370, doc.y).strokeColor('#ddd').stroke();
+    doc.moveDown(0.5);
+
+    // Receipt meta
+    doc.fillColor('#000').fontSize(9);
+    doc.text(`Receipt #: ${receiptId}`, 30);
+    doc.text(`Date: ${fmtDate(sale.saleDate)}`, 30);
+    doc.text(`Customer: ${sale.customer?.name || 'Walk-in'}`, 30);
+    if (sale.customer?.phone) doc.text(`Phone: ${sale.customer.phone}`, 30);
+    doc.text(`Sold By: ${sale.soldBy?.name || '—'}`, 30);
+    doc.moveDown(0.5);
+    doc.moveTo(30, doc.y).lineTo(370, doc.y).strokeColor('#ddd').stroke();
+    doc.moveDown(0.5);
+
+    // Items header
+    doc.font('Helvetica-Bold').fontSize(8);
+    doc.text('Item', 30, doc.y, { width: 160 });
+    doc.text('Qty', 200, doc.y - doc.currentLineHeight(), { width: 40, align: 'right' });
+    doc.text('Price', 250, doc.y - doc.currentLineHeight(), { width: 55, align: 'right' });
+    doc.text('Total', 315, doc.y - doc.currentLineHeight(), { width: 55, align: 'right' });
+    doc.moveDown(0.3);
+    doc.moveTo(30, doc.y).lineTo(370, doc.y).strokeColor('#ddd').stroke();
+    doc.moveDown(0.3);
+
+    // Items
+    doc.font('Helvetica').fontSize(9);
+    for (const item of sale.items) {
+      const y = doc.y;
+      doc.text(item.product.name, 30, y, { width: 160 });
+      doc.text(String(item.quantity), 200, y, { width: 40, align: 'right' });
+      doc.text(fmt(item.unitPrice), 250, y, { width: 55, align: 'right' });
+      doc.text(fmt(item.total), 315, y, { width: 55, align: 'right' });
+      doc.moveDown(0.4);
+    }
+
+    doc.moveDown(0.3);
+    doc.moveTo(30, doc.y).lineTo(370, doc.y).strokeColor('#ddd').stroke();
+    doc.moveDown(0.5);
+
+    // Totals
+    const totY = doc.y;
+    doc.fontSize(9);
+    doc.text('Subtotal:', 200, totY, { width: 100 });
+    doc.text(fmt(sale.totalAmount), 315, totY, { width: 55, align: 'right' });
+    doc.moveDown(0.4);
+    doc.text('Amount Paid:', 200, doc.y, { width: 100 });
+    doc.text(fmt(sale.amountPaid), 315, doc.y - doc.currentLineHeight(), { width: 55, align: 'right' });
+    doc.moveDown(0.4);
+    doc.font('Helvetica-Bold');
+    doc.text('Balance Due:', 200, doc.y, { width: 100 });
+    doc.text(fmt(sale.balance), 315, doc.y - doc.currentLineHeight(), { width: 55, align: 'right' });
+
+    doc.moveDown(1);
+    doc.moveTo(30, doc.y).lineTo(370, doc.y).strokeColor('#ddd').stroke();
+    doc.moveDown(0.5);
+
+    // Status
+    doc.font('Helvetica').fontSize(9).fillColor('#666')
+      .text(`Status: ${sale.status}`, { align: 'center' });
+    if (sale.notes) doc.text(`Notes: ${sale.notes}`, { align: 'center' });
+    doc.moveDown(1);
+    doc.fontSize(8).text('Thank you for your business!', { align: 'center' });
+
+    doc.end();
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
@@ -49,6 +49,25 @@ export default function PurchasesPage() {
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/suppliers') });
   const { data: products } = useQuery({ queryKey: ['products'], queryFn: () => api.get('/products') });
   const { data: history } = useQuery({ queryKey: ['purchases'], queryFn: () => api.get('/purchases'), enabled: showHistory });
+  const { data: currentRates } = useQuery({ queryKey: ['exchange-rates-current'], queryFn: () => api.get('/exchange-rates/current') });
+
+  // Auto-fill exchange rate when currency or rates change
+  useEffect(() => {
+    if (!currentRates) return;
+    if (currency === 'AED') {
+      // AED rate stored as AED→GHS, split into AED→USD and USD→GHS
+      const aedToGHS = currentRates['AED'] || '';
+      const usdToGHS = currentRates['USD'] || '';
+      if (usdToGHS) setExchangeRate(String(usdToGHS));
+      // Derive AED→USD intermediary: AED→GHS / USD→GHS
+      if (aedToGHS && usdToGHS && Number(usdToGHS) > 0) {
+        setIntermediaryRate(String((Number(aedToGHS) / Number(usdToGHS)).toFixed(4)));
+      }
+    } else {
+      const rate = currentRates[currency];
+      if (rate) setExchangeRate(String(rate));
+    }
+  }, [currency, currentRates]);
 
   const effectiveRate = calcEffectiveRate(currency, Number(exchangeRate), Number(intermediaryRate));
   const shippingCostGHS = Number(shippingCostForeign) * effectiveRate;
@@ -135,7 +154,7 @@ export default function PurchasesPage() {
           </div>
           <div>
             <label className="label">Purchase Currency</label>
-            <select className="input" value={currency} onChange={(e) => { setCurrency(e.target.value); setIntermediaryRate(''); }}>
+            <select className="input" value={currency} onChange={(e) => { setCurrency(e.target.value); setExchangeRate(''); setIntermediaryRate(''); }}>
               {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
@@ -148,6 +167,7 @@ export default function PurchasesPage() {
           <div>
             <label className="label">{currency === 'AED' ? 'USD → GHS Rate' : `${currency} → GHS Rate`}</label>
             <input type="number" step="0.01" className="input" value={exchangeRate} onChange={(e) => setExchangeRate(e.target.value)} placeholder="e.g. 14.5" />
+            {currentRates && <p className="text-text-tertiary text-xs mt-1">Saved rate: {currency === 'AED' ? currentRates['USD'] : currentRates[currency]} (auto-filled)</p>}
           </div>
           {effectiveRate > 0 && currency === 'AED' && (
             <div>

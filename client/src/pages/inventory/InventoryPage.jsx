@@ -68,7 +68,7 @@ function AssignModal({ isOpen, onClose, products, users }) {
   });
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Assign Stock" size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title="Assign Stock to Outlet" size="sm">
       <div className="space-y-4">
         <div>
           <label className="label">Product</label>
@@ -107,10 +107,132 @@ function AssignModal({ isOpen, onClose, products, users }) {
   );
 }
 
+function ReturnModal({ isOpen, onClose, products, users }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ productId: '', fromUserId: '', quantity: 1, notes: '' });
+
+  const returnStock = useMutation({
+    mutationFn: (data) => api.post('/inventory/return', data),
+    onSuccess: () => {
+      toast.success('Stock returned to warehouse');
+      qc.invalidateQueries(['inventory']);
+      onClose();
+      setForm({ productId: '', fromUserId: '', quantity: 1, notes: '' });
+    },
+    onError: (err) => toast.error(err.error || 'Failed to return stock'),
+  });
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Return Stock to Warehouse" size="sm">
+      <div className="space-y-4">
+        <p className="text-text-secondary text-sm">Move unsold stock from an outlet back to the warehouse.</p>
+        <div>
+          <label className="label">Product</label>
+          <select className="input" value={form.productId} onChange={(e) => setForm({ ...form, productId: e.target.value })}>
+            <option value="">Select product</option>
+            {products?.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Return From (Outlet)</label>
+          <select className="input" value={form.fromUserId} onChange={(e) => setForm({ ...form, fromUserId: e.target.value })}>
+            <option value="">Select outlet user</option>
+            {users?.filter((u) => u.role !== 'ADMIN').map((u) => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Quantity</label>
+          <input type="number" className="input" min={1} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: +e.target.value })} />
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button className="btn-secondary flex-1" onClick={onClose}>Cancel</button>
+          <button
+            className="btn-primary flex-1"
+            onClick={() => returnStock.mutate(form)}
+            disabled={!form.productId || !form.fromUserId || returnStock.isPending}
+          >
+            {returnStock.isPending ? 'Returning...' : 'Return to Warehouse'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function WriteOffModal({ isOpen, onClose, inventory }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ productId: '', location: 'WAREHOUSE', quantity: 1, reason: '' });
+
+  // Unique locations from inventory
+  const locations = [...new Set((inventory || []).map((i) => i.location))];
+
+  const writeOff = useMutation({
+    mutationFn: (data) => api.post('/inventory/writeoff', data),
+    onSuccess: () => {
+      toast.success('Stock written off');
+      qc.invalidateQueries(['inventory']);
+      onClose();
+      setForm({ productId: '', location: 'WAREHOUSE', quantity: 1, reason: '' });
+    },
+    onError: (err) => toast.error(err.error || 'Failed to write off stock'),
+  });
+
+  // Filter inventory to selected product+location
+  const available = (inventory || []).find(
+    (i) => i.productId === form.productId && i.location === form.location
+  )?.quantity ?? 0;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Write Off Stock" size="sm">
+      <div className="space-y-4">
+        <p className="text-text-secondary text-sm">Remove damaged, lost, or expired stock from inventory.</p>
+        <div>
+          <label className="label">Product</label>
+          <select className="input" value={form.productId} onChange={(e) => setForm({ ...form, productId: e.target.value })}>
+            <option value="">Select product</option>
+            {[...new Map((inventory || []).map((i) => [i.productId, i.product])).entries()].map(([id, p]) => (
+              <option key={id} value={id}>{p.name} ({p.sku})</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label">Location</label>
+          <select className="input" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })}>
+            {locations.map((loc) => (
+              <option key={loc} value={loc}>{loc === 'WAREHOUSE' ? 'Warehouse' : loc.replace('OUTLET_', 'Outlet: ')}</option>
+            ))}
+          </select>
+        </div>
+        {form.productId && <p className="text-text-tertiary text-xs">Available: {available}</p>}
+        <div>
+          <label className="label">Quantity to Write Off</label>
+          <input type="number" className="input" min={1} max={available} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: +e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Reason (optional)</label>
+          <input className="input" placeholder="Damaged, expired, lost..." value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button className="btn-secondary flex-1" onClick={onClose}>Cancel</button>
+          <button
+            className="bg-danger text-white px-4 py-2 rounded-lg text-sm font-medium flex-1 disabled:opacity-50"
+            onClick={() => writeOff.mutate(form)}
+            disabled={!form.productId || form.quantity < 1 || writeOff.isPending}
+          >
+            {writeOff.isPending ? 'Writing Off...' : 'Write Off Stock'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export default function InventoryPage() {
   const { user } = useAuthStore();
   const [assignOpen, setAssignOpen] = useState(false);
   const [receiveOpen, setReceiveOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [writeOffOpen, setWriteOffOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('');
 
   const isOutlet = user?.role === 'OUTLET';
@@ -157,9 +279,11 @@ export default function InventoryPage() {
           </p>
         </div>
         {!isOutlet && (
-          <div className="flex gap-2">
-            <button className="btn-secondary" onClick={() => setReceiveOpen(true)}>+ Receive Stock</button>
-            <button className="btn-primary" onClick={() => setAssignOpen(true)}>+ Assign Stock</button>
+          <div className="flex gap-2 flex-wrap justify-end">
+            <button className="btn-secondary text-sm" onClick={() => setReceiveOpen(true)}>+ Receive</button>
+            <button className="btn-primary text-sm" onClick={() => setAssignOpen(true)}>+ Assign</button>
+            <button className="btn-secondary text-sm" onClick={() => setReturnOpen(true)}>Return</button>
+            <button className="btn-secondary text-sm text-danger hover:bg-danger/10" onClick={() => setWriteOffOpen(true)}>Write Off</button>
           </div>
         )}
       </div>
@@ -263,17 +387,10 @@ export default function InventoryPage() {
         ))}
       </div>
 
-      <ReceiveModal
-        isOpen={receiveOpen}
-        onClose={() => setReceiveOpen(false)}
-        products={products}
-      />
-      <AssignModal
-        isOpen={assignOpen}
-        onClose={() => setAssignOpen(false)}
-        products={products}
-        users={holders?.users}
-      />
+      <ReceiveModal isOpen={receiveOpen} onClose={() => setReceiveOpen(false)} products={products} />
+      <AssignModal isOpen={assignOpen} onClose={() => setAssignOpen(false)} products={products} users={holders?.users} />
+      <ReturnModal isOpen={returnOpen} onClose={() => setReturnOpen(false)} products={products} users={holders?.users} />
+      <WriteOffModal isOpen={writeOffOpen} onClose={() => setWriteOffOpen(false)} inventory={inventory} />
     </div>
   );
 }

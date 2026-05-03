@@ -4,9 +4,10 @@ import api from '../../api/client';
 import useAuthStore from '../../store/authStore';
 
 export default function SettingsPage() {
-  const [businessName, setBusinessName] = useState('Strat Mount');
-  const [whatsapp, setWhatsapp] = useState('');
-  const [baseCurrency, setBaseCurrency] = useState('GHS');
+  const saved = JSON.parse(localStorage.getItem('sm_settings') || '{}');
+  const [businessName, setBusinessName] = useState(saved.businessName || 'Strat Mount');
+  const [whatsapp, setWhatsapp] = useState(saved.whatsapp || '');
+  const [baseCurrency, setBaseCurrency] = useState(saved.baseCurrency || 'GHS');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

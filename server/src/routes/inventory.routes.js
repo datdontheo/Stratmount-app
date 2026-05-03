@@ -128,6 +128,71 @@ router.post('/assign', requireAdminOrWarehouse, async (req, res) => {
   }
 });
 
+// Return stock from outlet back to warehouse
+router.post('/return', requireAdminOrWarehouse, async (req, res) => {
+  try {
+    const { productId, fromUserId, quantity, notes } = req.body;
+    if (!productId || !fromUserId || !quantity || quantity < 1) {
+      return res.status(400).json({ error: 'Product, user, and quantity are required' });
+    }
+
+    const outletLocation = `OUTLET_${fromUserId}`;
+    const outletInv = await prisma.inventory.findFirst({
+      where: { productId, location: outletLocation },
+    });
+    if (!outletInv || outletInv.quantity < quantity) {
+      return res.status(400).json({ error: 'Insufficient outlet stock to return' });
+    }
+
+    await prisma.inventory.update({
+      where: { id: outletInv.id },
+      data: { quantity: { decrement: quantity } },
+    });
+
+    const warehouseInv = await prisma.inventory.findFirst({
+      where: { productId, location: 'WAREHOUSE' },
+    });
+    if (warehouseInv) {
+      await prisma.inventory.update({
+        where: { id: warehouseInv.id },
+        data: { quantity: { increment: quantity } },
+      });
+    } else {
+      await prisma.inventory.create({
+        data: { productId, quantity, location: 'WAREHOUSE' },
+      });
+    }
+
+    res.json({ message: 'Stock returned to warehouse' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Write off stock (damaged / lost / adjustment)
+router.post('/writeoff', requireAdminOrWarehouse, async (req, res) => {
+  try {
+    const { productId, location, quantity, reason } = req.body;
+    if (!productId || !location || !quantity || quantity < 1) {
+      return res.status(400).json({ error: 'Product, location, and quantity are required' });
+    }
+
+    const inv = await prisma.inventory.findFirst({ where: { productId, location } });
+    if (!inv || inv.quantity < quantity) {
+      return res.status(400).json({ error: 'Insufficient stock to write off' });
+    }
+
+    await prisma.inventory.update({
+      where: { id: inv.id },
+      data: { quantity: { decrement: quantity } },
+    });
+
+    res.json({ message: 'Stock written off' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/transfer', requireAdminOrWarehouse, async (req, res) => {
   try {
     const { productId, fromLocation, toLocation, quantity, toUserId } = req.body;

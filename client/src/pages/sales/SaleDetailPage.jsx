@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../../api/client';
 import Badge from '../../components/ui/Badge';
 import { formatCurrency, formatDate } from '../../utils/format';
-import { IconPhone, IconPrinter, IconArrowLeft } from '../../components/ui/Icons';
+import { IconPhone, IconPrinter, IconArrowLeft, IconDownload } from '../../components/ui/Icons';
 
 export default function SaleDetailPage() {
   const { id } = useParams();
@@ -14,8 +14,10 @@ export default function SaleDetailPage() {
   });
 
   const shareWhatsApp = () => {
-    const text = `Receipt from Strat Mount\n\nSale: ${id.slice(-8).toUpperCase()}\nCustomer: ${sale?.customer?.name || 'Walk-in'}\nDate: ${formatDate(sale?.saleDate)}\nTotal: ${formatCurrency(sale?.totalAmount)}\nPaid: ${formatCurrency(sale?.amountPaid)}\nBalance: ${formatCurrency(sale?.balance)}\n\nItems:\n${sale?.items?.map((i) => `- ${i.product.name} x${i.quantity} @ ${formatCurrency(i.unitPrice)} = ${formatCurrency(i.total)}`).join('\n')}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    const settings = JSON.parse(localStorage.getItem('sm_settings') || '{}');
+    const text = `Receipt from ${settings.businessName || 'Strat Mount'}\n\nSale: ${id.slice(-8).toUpperCase()}\nCustomer: ${sale?.customer?.name || 'Walk-in'}\nDate: ${formatDate(sale?.saleDate)}\nTotal: ${formatCurrency(sale?.totalAmount)}\nPaid: ${formatCurrency(sale?.amountPaid)}\nBalance: ${formatCurrency(sale?.balance)}\n\nItems:\n${sale?.items?.map((i) => `- ${i.product.name} x${i.quantity} @ ${formatCurrency(i.unitPrice)} = ${formatCurrency(i.total)}`).join('\n')}`;
+    const phone = settings.whatsapp ? settings.whatsapp.replace(/\D/g, '') : '';
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   if (isLoading) return <div className="text-center py-12 text-text-secondary">Loading receipt...</div>;
@@ -113,6 +115,9 @@ export default function SaleDetailPage() {
         </button>
         <button onClick={() => window.print()} className="btn-secondary flex-1 flex items-center justify-center gap-2">
           <IconPrinter size={16} /> Print Receipt
+        </button>
+        <button onClick={() => window.open(`/api/sales/${id}/pdf`, '_blank')} className="btn-secondary flex-1 flex items-center justify-center gap-2">
+          <IconDownload size={16} /> Download PDF
         </button>
       </div>
     </div>
