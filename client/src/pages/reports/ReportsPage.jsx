@@ -36,14 +36,14 @@ export default function ReportsPage() {
 
   const { data: expensesReport } = useQuery({
     queryKey: ['report-expenses', startDate, endDate],
-    queryFn: () => api.get(`/reports/expenses`),
+    queryFn: () => api.get(`/reports/expenses${qs}`),
     enabled: activeTab === 'Expenses',
   });
 
   const exportType = { 'Sales': 'sales', 'Inventory': 'inventory', 'Profit & Loss': 'pl', 'Expenses': 'expenses' };
   const handleExport = () => {
     const type = exportType[activeTab];
-    window.open(`/api/reports/export/${type}`, '_blank');
+    window.open(`/api/reports/export/${type}${qs}`, '_blank');
   };
 
   return (

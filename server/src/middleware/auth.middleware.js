@@ -8,7 +8,8 @@ const authenticate = (req, res, next) => {
 
   const token = authHeader.split(' ')[1];
   try {
-    const secret = process.env.JWT_SECRET || 'stratmount_demo_secret_change_for_production';
+    const secret = process.env.JWT_SECRET;
+    if (!secret) return res.status(500).json({ error: 'Server misconfiguration: JWT_SECRET not set' });
     const decoded = jwt.verify(token, secret);
     req.user = decoded;
     next();

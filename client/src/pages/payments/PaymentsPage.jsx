@@ -44,14 +44,19 @@ function RecordPaymentModal({ isOpen, onClose, sales }) {
     onError: (err) => toast.error(err.error || 'Failed to record payment'),
   });
 
+  const handleClose = () => {
+    setProofImage(null);
+    onClose();
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Record Payment" size="sm">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Record Payment" size="sm">
       <div className="space-y-4">
         <div>
           <label className="label">Linked Sale (optional)</label>
           <select className="input" value={form.saleId} onChange={(e) => {
             const sale = sales?.find((s) => s.id === e.target.value);
-            setForm({ ...form, saleId: e.target.value, amount: sale ? sale.balance.toString() : form.amount });
+            setForm({ ...form, saleId: e.target.value, amount: sale ? sale.balance : form.amount });
           }}>
             <option value="">No linked sale</option>
             {(sales || []).filter((s) => s.status !== 'PAID').map((s) => (
@@ -61,7 +66,7 @@ function RecordPaymentModal({ isOpen, onClose, sales }) {
         </div>
         <div>
           <label className="label">Amount (GHS) *</label>
-          <input type="number" className="input" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
+          <input type="number" className="input" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: +e.target.value })} required />
         </div>
         <div>
           <label className="label">Payment Method</label>
@@ -105,7 +110,7 @@ function RecordPaymentModal({ isOpen, onClose, sales }) {
           <input className="input" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
         </div>
         <div className="flex gap-3 pt-2">
-          <button className="btn-secondary flex-1" onClick={onClose}>Cancel</button>
+          <button className="btn-secondary flex-1" onClick={handleClose}>Cancel</button>
           <button
             className="btn-primary flex-1"
             onClick={() => record.mutate({ ...form, amount: +form.amount, proofImage })}

@@ -66,6 +66,16 @@ router.post('/', async (req, res) => {
     const balance = totalAmount - paid;
     const status = balance <= 0 ? 'PAID' : paid > 0 ? 'PARTIAL' : 'PENDING';
 
+    // Validate stock before creating sale
+    const location = req.user.role === 'OUTLET' ? `OUTLET_${req.user.id}` : 'WAREHOUSE';
+    for (const item of items) {
+      const inv = await prisma.inventory.findFirst({ where: { productId: item.productId, location } });
+      if (!inv || inv.quantity < item.quantity) {
+        const product = await prisma.product.findUnique({ where: { id: item.productId }, select: { name: true } });
+        return res.status(400).json({ error: `Insufficient stock for "${product?.name || 'a product'}"` });
+      }
+    }
+
     const sale = await prisma.sale.create({
       data: {
         customerId: customerId || null,
@@ -96,9 +106,8 @@ router.post('/', async (req, res) => {
 
     // Deduct from inventory
     for (const item of items) {
-      const location = req.user.role === 'OUTLET' ? `OUTLET_${req.user.id}` : 'WAREHOUSE';
       const inv = await prisma.inventory.findFirst({ where: { productId: item.productId, location } });
-      if (inv && inv.quantity >= item.quantity) {
+      if (inv) {
         await prisma.inventory.update({
           where: { id: inv.id },
           data: { quantity: { decrement: item.quantity } },

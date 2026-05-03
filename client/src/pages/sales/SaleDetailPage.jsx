@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../../api/client';
 import Badge from '../../components/ui/Badge';
 import { formatCurrency, formatDate } from '../../utils/format';
@@ -17,6 +18,10 @@ export default function SaleDetailPage() {
     const settings = JSON.parse(localStorage.getItem('sm_settings') || '{}');
     const text = `Receipt from ${settings.businessName || 'Strat Mount'}\n\nSale: ${id.slice(-8).toUpperCase()}\nCustomer: ${sale?.customer?.name || 'Walk-in'}\nDate: ${formatDate(sale?.saleDate)}\nTotal: ${formatCurrency(sale?.totalAmount)}\nPaid: ${formatCurrency(sale?.amountPaid)}\nBalance: ${formatCurrency(sale?.balance)}\n\nItems:\n${sale?.items?.map((i) => `- ${i.product.name} x${i.quantity} @ ${formatCurrency(i.unitPrice)} = ${formatCurrency(i.total)}`).join('\n')}`;
     const phone = settings.whatsapp ? settings.whatsapp.replace(/\D/g, '') : '';
+    if (!phone) {
+      toast.error('Set your WhatsApp number in Settings first');
+      return;
+    }
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
   };
 

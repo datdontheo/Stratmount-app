@@ -38,7 +38,7 @@ function NewSaleModal({ isOpen, onClose, products, customers }) {
 
   const create = useMutation({
     mutationFn: (data) => api.post('/sales', data),
-    onSuccess: () => { toast.success('Sale recorded'); qc.invalidateQueries(['sales']); onClose(); setForm({ customerId: '', notes: '', currency: 'GHS', amountPaid: 0, saleDate: new Date().toISOString().split('T')[0], items: [{ productId: '', quantity: 1, unitPrice: 0 }] }); },
+    onSuccess: () => { toast.success('Sale recorded'); qc.invalidateQueries({ queryKey: ['sales'] }); qc.invalidateQueries({ queryKey: ['inventory'] }); onClose(); setForm({ customerId: '', notes: '', currency: 'GHS', amountPaid: 0, saleDate: new Date().toISOString().split('T')[0], items: [{ productId: '', quantity: 1, unitPrice: 0 }] }); },
     onError: (err) => toast.error(err.error || 'Failed to record sale'),
   });
 

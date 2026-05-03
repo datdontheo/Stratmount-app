@@ -51,23 +51,21 @@ export default function PurchasesPage() {
   const { data: history } = useQuery({ queryKey: ['purchases'], queryFn: () => api.get('/purchases'), enabled: showHistory });
   const { data: currentRates } = useQuery({ queryKey: ['exchange-rates-current'], queryFn: () => api.get('/exchange-rates/current') });
 
-  // Auto-fill exchange rate when currency or rates change
+  // Auto-fill exchange rate when currency changes — only if field is currently empty
   useEffect(() => {
     if (!currentRates) return;
     if (currency === 'AED') {
-      // AED rate stored as AED→GHS, split into AED→USD and USD→GHS
       const aedToGHS = currentRates['AED'] || '';
       const usdToGHS = currentRates['USD'] || '';
-      if (usdToGHS) setExchangeRate(String(usdToGHS));
-      // Derive AED→USD intermediary: AED→GHS / USD→GHS
-      if (aedToGHS && usdToGHS && Number(usdToGHS) > 0) {
+      if (usdToGHS && !exchangeRate) setExchangeRate(String(usdToGHS));
+      if (aedToGHS && usdToGHS && Number(usdToGHS) > 0 && !intermediaryRate) {
         setIntermediaryRate(String((Number(aedToGHS) / Number(usdToGHS)).toFixed(4)));
       }
     } else {
       const rate = currentRates[currency];
-      if (rate) setExchangeRate(String(rate));
+      if (rate && !exchangeRate) setExchangeRate(String(rate));
     }
-  }, [currency, currentRates]);
+  }, [currency, currentRates]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const effectiveRate = calcEffectiveRate(currency, Number(exchangeRate), Number(intermediaryRate));
   const shippingCostGHS = Number(shippingCostForeign) * effectiveRate;
@@ -177,7 +175,7 @@ export default function PurchasesPage() {
           )}
           <div>
             <label className="label">Shipping Cost ({currency})</label>
-            <input type="number" step="0.01" className="input" value={shippingCostForeign} onChange={(e) => setShippingCostForeign(e.target.value)} placeholder="0.00" />
+            <input type="number" step="0.01" min={0} className="input" value={shippingCostForeign} onChange={(e) => setShippingCostForeign(Math.max(0, +e.target.value))} placeholder="0.00" />
           </div>
           {Number(shippingCostForeign) > 0 && (
             <div>

@@ -101,7 +101,8 @@ export default function SettingsPage() {
           className="btn-danger text-sm"
           onClick={() => {
             if (window.confirm('Log out of all sessions?')) {
-              localStorage.clear();
+              localStorage.removeItem('sm_token');
+              localStorage.removeItem('sm_user');
               window.location.href = '/login';
             }
           }}
