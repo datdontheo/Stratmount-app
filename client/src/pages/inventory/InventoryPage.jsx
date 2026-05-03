@@ -317,23 +317,23 @@ export default function InventoryPage() {
   const [selectedAdminItem, setSelectedAdminItem] = useState(null);
   const [selectedOutletItem, setSelectedOutletItem] = useState(null);
 
-  const isOutlet = user?.role === 'OUTLET';
+  const isSubAccount = user?.role === 'OUTLET' || user?.role === 'WAREHOUSE';
 
   const { data: inventory, isLoading } = useQuery({
-    queryKey: ['inventory', isOutlet],
-    queryFn: () => api.get(isOutlet ? '/inventory/my' : '/inventory'),
+    queryKey: ['inventory', isSubAccount],
+    queryFn: () => api.get(isSubAccount ? '/inventory/my' : '/inventory'),
   });
 
   const { data: products } = useQuery({
     queryKey: ['products'],
     queryFn: () => api.get('/products'),
-    enabled: !isOutlet,
+    enabled: !isSubAccount,
   });
 
   const { data: holders } = useQuery({
     queryKey: ['inventory-holders'],
     queryFn: () => api.get('/inventory/holders'),
-    enabled: !isOutlet,
+    enabled: !isSubAccount,
   });
 
   // Build userId → name map from holders data
@@ -346,7 +346,7 @@ export default function InventoryPage() {
 
   // Group by product for admin view
   const grouped = {};
-  if (!isOutlet) {
+  if (!isSubAccount) {
     filtered.forEach((item) => {
       if (!grouped[item.productId]) {
         grouped[item.productId] = { product: item.product, entries: [] };
@@ -361,10 +361,10 @@ export default function InventoryPage() {
         <div>
           <h1 className="font-heading font-bold text-2xl text-text-primary">Inventory</h1>
           <p className="text-text-secondary text-sm mt-1">
-            {isOutlet ? 'Your assigned stock' : 'All stock locations'}
+            {isSubAccount ? 'Your assigned stock' : 'All stock locations'}
           </p>
         </div>
-        {!isOutlet && (
+        {!isSubAccount && (
           <div className="flex gap-2 flex-wrap justify-end">
             <button className="btn-secondary text-sm" onClick={() => setReceiveOpen(true)}>+ Receive</button>
             <button className="btn-primary text-sm" onClick={() => setAssignOpen(true)}>+ Assign</button>
@@ -398,7 +398,7 @@ export default function InventoryPage() {
               <th className="th">Product</th>
               <th className="th">SKU</th>
               <th className="th">Category</th>
-              {isOutlet ? (
+              {isSubAccount ? (
                 <>
                   <th className="th">Qty Received</th>
                   <th className="th">Base Cost/Unit</th>
@@ -414,8 +414,8 @@ export default function InventoryPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={isOutlet ? 6 : 7} />)}
-            {isOutlet
+            {isLoading && Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={isSubAccount ? 6 : 7} />)}
+            {isSubAccount
               ? filtered.map((item) => (
                   <tr
                     key={item.id}
@@ -470,7 +470,7 @@ export default function InventoryPage() {
       {/* Mobile cards */}
       <div className="lg:hidden space-y-3">
         {isLoading && <div className="text-center py-8 text-text-tertiary">Loading...</div>}
-        {isOutlet
+        {isSubAccount
           ? filtered.map((item) => (
               <div key={item.id} className="card cursor-pointer active:bg-bg-tertiary" onClick={() => setSelectedOutletItem(item)}>
                 <div className="flex items-start justify-between">
