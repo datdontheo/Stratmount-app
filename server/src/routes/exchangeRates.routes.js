@@ -28,6 +28,12 @@ router.get('/current', async (req, res) => {
       });
       current[c] = rate ? rate.rate : 1;
     }
+    // AED→USD intermediary rate
+    const aedUsd = await prisma.exchangeRate.findFirst({
+      where: { fromCurrency: 'AED', toCurrency: 'USD' },
+      orderBy: { date: 'desc' },
+    });
+    current.aedToUSD = aedUsd ? aedUsd.rate : null;
     res.json(current);
   } catch (err) {
     res.status(500).json({ error: err.message });

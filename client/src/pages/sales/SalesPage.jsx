@@ -12,7 +12,7 @@ import { IconX, IconPlus, IconChevronRight } from '../../components/ui/Icons';
 
 const CATEGORIES = ['All', 'PERFUME', 'GADGET', 'OTHER'];
 
-function NewSaleModal({ isOpen, onClose, products, customers }) {
+function NewSaleModal({ isOpen, onClose, products, customers, defaultMargin }) {
   const qc = useQueryClient();
   const { user } = useAuthStore();
 
@@ -44,7 +44,14 @@ function NewSaleModal({ isOpen, onClose, products, customers }) {
     items[idx] = { ...items[idx], [field]: field === 'quantity' || field === 'unitPrice' ? +val : val };
     if (field === 'productId') {
       const product = products?.find((p) => p.id === val);
-      if (product) items[idx].unitPrice = product.sellingPrice;
+      if (product) {
+        // Outlet: auto-fill using default margin if set; else use admin-set selling price
+        if (user?.role === 'OUTLET' && defaultMargin != null && defaultMargin > 0) {
+          items[idx].unitPrice = +(product.costPrice * (1 + defaultMargin / 100)).toFixed(2);
+        } else {
+          items[idx].unitPrice = product.sellingPrice;
+        }
+      }
     }
     setForm({ ...form, items });
   };
@@ -199,6 +206,7 @@ function NewSaleModal({ isOpen, onClose, products, customers }) {
 }
 
 export default function SalesPage() {
+  const { user } = useAuthStore();
   const [addOpen, setAddOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -210,6 +218,13 @@ export default function SalesPage() {
 
   const { data: products } = useQuery({ queryKey: ['products'], queryFn: () => api.get('/products') });
   const { data: customers } = useQuery({ queryKey: ['customers'], queryFn: () => api.get('/customers') });
+
+  // Outlet: load default margin for price auto-fill
+  const { data: userProfile } = useQuery({
+    queryKey: ['user-me'],
+    queryFn: () => api.get('/users/me'),
+    enabled: user?.role === 'OUTLET',
+  });
 
   const filteredSales = (sales || []).filter((s) => {
     if (!search) return true;
@@ -314,7 +329,13 @@ export default function SalesPage() {
         <IconPlus size={24} />
       </button>
 
-      <NewSaleModal isOpen={addOpen} onClose={() => setAddOpen(false)} products={products} customers={customers} />
+      <NewSaleModal
+        isOpen={addOpen}
+        onClose={() => setAddOpen(false)}
+        products={products}
+        customers={customers}
+        defaultMargin={userProfile?.defaultMargin ?? null}
+      />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -8,6 +9,7 @@ import { IconPhone, IconPrinter, IconArrowLeft, IconDownload } from '../../compo
 
 export default function SaleDetailPage() {
   const { id } = useParams();
+  const [downloading, setDownloading] = useState(false);
 
   const { data: sale, isLoading } = useQuery({
     queryKey: ['sale', id],
@@ -16,7 +18,8 @@ export default function SaleDetailPage() {
 
   const shareWhatsApp = () => {
     const settings = JSON.parse(localStorage.getItem('sm_settings') || '{}');
-    const text = `Receipt from ${settings.businessName || 'Strat Mount'}\n\nSale: ${id.slice(-8).toUpperCase()}\nCustomer: ${sale?.customer?.name || 'Walk-in'}\nDate: ${formatDate(sale?.saleDate)}\nTotal: ${formatCurrency(sale?.totalAmount)}\nPaid: ${formatCurrency(sale?.amountPaid)}\nBalance: ${formatCurrency(sale?.balance)}\n\nItems:\n${sale?.items?.map((i) => `- ${i.product.name} x${i.quantity} @ ${formatCurrency(i.unitPrice)} = ${formatCurrency(i.total)}`).join('\n')}`;
+    const companyDisplay = sale?.soldBy?.companyName || settings.businessName || 'Strat Mount';
+    const text = `Receipt from ${companyDisplay}\n\nSale: ${id.slice(-8).toUpperCase()}\nCustomer: ${sale?.customer?.name || 'Walk-in'}\nDate: ${formatDate(sale?.saleDate)}\nTotal: ${formatCurrency(sale?.totalAmount)}\nPaid: ${formatCurrency(sale?.amountPaid)}\nBalance: ${formatCurrency(sale?.balance)}\n\nItems:\n${sale?.items?.map((i) => `- ${i.product.name} x${i.quantity} @ ${formatCurrency(i.unitPrice)} = ${formatCurrency(i.total)}`).join('\n')}`;
     const phone = settings.whatsapp ? settings.whatsapp.replace(/\D/g, '') : '';
     if (!phone) {
       toast.error('Set your WhatsApp number in Settings first');
@@ -25,8 +28,37 @@ export default function SaleDetailPage() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
+  const downloadPdf = async () => {
+    setDownloading(true);
+    try {
+      const token = localStorage.getItem('sm_token');
+      const res = await fetch(`/api/sales/${id}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        toast.error('Failed to download PDF');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `receipt-${id.slice(-8).toUpperCase()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download PDF');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (isLoading) return <div className="text-center py-12 text-text-secondary">Loading receipt...</div>;
   if (!sale) return <div className="text-center py-12 text-text-secondary">Sale not found</div>;
+
+  const companyName = sale.soldBy?.companyName || 'STRAT MOUNT';
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -38,11 +70,15 @@ export default function SaleDetailPage() {
       <div className="card" id="receipt">
         {/* Header */}
         <div className="text-center pb-6 border-b border-border">
-          <div className="inline-flex items-center justify-center w-10 h-10 bg-white rounded-lg mb-3">
-            <span className="text-black font-heading font-bold text-sm">SM</span>
-          </div>
-          <h1 className="font-heading font-bold text-xl text-text-primary">STRAT MOUNT</h1>
-          <p className="text-text-secondary text-xs mt-1">Business Management</p>
+          {sale.soldBy?.companyLogo ? (
+            <img src={sale.soldBy.companyLogo} alt="Company logo" className="h-12 mx-auto mb-2 rounded object-contain" />
+          ) : (
+            <div className="inline-flex items-center justify-center w-10 h-10 bg-white rounded-lg mb-3">
+              <span className="text-black font-heading font-bold text-sm">{companyName.slice(0, 2).toUpperCase()}</span>
+            </div>
+          )}
+          <h1 className="font-heading font-bold text-xl text-text-primary">{companyName.toUpperCase()}</h1>
+          <p className="text-text-secondary text-xs mt-1">Sales Receipt</p>
         </div>
 
         {/* Meta */}
@@ -114,15 +150,15 @@ export default function SaleDetailPage() {
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
         <button onClick={shareWhatsApp} className="btn-secondary flex-1 flex items-center justify-center gap-2">
           <IconPhone size={16} /> Share via WhatsApp
         </button>
         <button onClick={() => window.print()} className="btn-secondary flex-1 flex items-center justify-center gap-2">
           <IconPrinter size={16} /> Print Receipt
         </button>
-        <button onClick={() => window.open(`/api/sales/${id}/pdf`, '_blank')} className="btn-secondary flex-1 flex items-center justify-center gap-2">
-          <IconDownload size={16} /> Download PDF
+        <button onClick={downloadPdf} disabled={downloading} className="btn-secondary flex-1 flex items-center justify-center gap-2">
+          <IconDownload size={16} /> {downloading ? 'Downloading...' : 'Download PDF'}
         </button>
       </div>
     </div>

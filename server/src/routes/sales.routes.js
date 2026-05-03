@@ -141,7 +141,7 @@ router.get('/:id/receipt', async (req, res) => {
       where: { id: req.params.id },
       include: {
         customer: true,
-        soldBy: { select: { name: true } },
+        soldBy: { select: { name: true, companyName: true, companyLogo: true } },
         items: { include: { product: true } },
         payments: true,
       },
@@ -159,7 +159,7 @@ router.get('/:id/pdf', async (req, res) => {
       where: { id: req.params.id },
       include: {
         customer: true,
-        soldBy: { select: { name: true } },
+        soldBy: { select: { name: true, companyName: true, companyLogo: true } },
         items: { include: { product: true } },
       },
     });
@@ -167,6 +167,7 @@ router.get('/:id/pdf', async (req, res) => {
 
     const doc = new PDFDocument({ size: [400, 600], margin: 30, autoFirstPage: true });
     const receiptId = req.params.id.slice(-8).toUpperCase();
+    const companyName = sale.soldBy?.companyName || 'STRAT MOUNT';
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="receipt-${receiptId}.pdf"`);
@@ -176,8 +177,8 @@ router.get('/:id/pdf', async (req, res) => {
     const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
     // Header
-    doc.fontSize(16).font('Helvetica-Bold').text('STRAT MOUNT', { align: 'center' });
-    doc.fontSize(9).font('Helvetica').fillColor('#666').text('Business Management', { align: 'center' });
+    doc.fontSize(16).font('Helvetica-Bold').text(companyName.toUpperCase(), { align: 'center' });
+    doc.fontSize(9).font('Helvetica').fillColor('#666').text('Sales Receipt', { align: 'center' });
     doc.moveDown(0.5);
     doc.moveTo(30, doc.y).lineTo(370, doc.y).strokeColor('#ddd').stroke();
     doc.moveDown(0.5);

@@ -13,14 +13,14 @@ const navItems = [
   { label: 'Receive Stock', path: '/purchases', icon: IconShoppingCart, roles: ['ADMIN', 'WAREHOUSE'] },
   { label: 'Sales', path: '/sales', icon: IconCreditCard, roles: ['ADMIN', 'WAREHOUSE', 'OUTLET'] },
   { label: 'Payments', path: '/payments', icon: IconDollarSign, roles: ['ADMIN', 'WAREHOUSE', 'OUTLET'] },
-  { label: 'Customers', path: '/customers', icon: IconUsers, roles: ['ADMIN', 'WAREHOUSE'] },
+  { label: 'Customers', path: '/customers', icon: IconUsers, roles: ['ADMIN', 'WAREHOUSE', 'OUTLET'] },
   { label: 'Suppliers', path: '/suppliers', icon: IconTruck, roles: ['ADMIN'] },
   { label: 'Expenses', path: '/expenses', icon: IconTrendingDown, roles: ['ADMIN'] },
   { label: 'Drawings', path: '/drawings', icon: IconBanknote, roles: ['ADMIN'] },
   { label: 'Exchange Rates', path: '/exchange-rates', icon: IconRefreshCw, roles: ['ADMIN'] },
   { label: 'Reports', path: '/reports', icon: IconBarChart, roles: ['ADMIN'] },
   { label: 'Users', path: '/users', icon: IconUser, roles: ['ADMIN'] },
-  { label: 'Settings', path: '/settings', icon: IconSettings, roles: ['ADMIN'] },
+  { label: 'Settings', path: '/settings', icon: IconSettings, roles: ['ADMIN', 'WAREHOUSE', 'OUTLET'] },
 ];
 
 export default function Sidebar({ onClose }) {

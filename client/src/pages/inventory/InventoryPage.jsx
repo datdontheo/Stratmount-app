@@ -16,7 +16,7 @@ function ReceiveModal({ isOpen, onClose, products }) {
     mutationFn: (data) => api.post('/inventory/receive', data),
     onSuccess: () => {
       toast.success('Stock received into warehouse');
-      qc.invalidateQueries(['inventory']);
+      qc.invalidateQueries({ queryKey: ['inventory'] });
       onClose();
       setForm({ productId: '', quantity: 1 });
     },
@@ -39,11 +39,7 @@ function ReceiveModal({ isOpen, onClose, products }) {
         </div>
         <div className="flex gap-3 pt-2">
           <button className="btn-secondary flex-1" onClick={onClose}>Cancel</button>
-          <button
-            className="btn-primary flex-1"
-            onClick={() => receive.mutate(form)}
-            disabled={!form.productId || form.quantity < 1 || receive.isPending}
-          >
+          <button className="btn-primary flex-1" onClick={() => receive.mutate(form)} disabled={!form.productId || form.quantity < 1 || receive.isPending}>
             {receive.isPending ? 'Receiving...' : 'Receive Stock'}
           </button>
         </div>
@@ -60,7 +56,7 @@ function AssignModal({ isOpen, onClose, products, users }) {
     mutationFn: (data) => api.post('/inventory/assign', data),
     onSuccess: () => {
       toast.success('Stock assigned successfully');
-      qc.invalidateQueries(['inventory']);
+      qc.invalidateQueries({ queryKey: ['inventory'] });
       onClose();
       setForm({ productId: '', toUserId: '', quantity: 1, notes: '' });
     },
@@ -94,11 +90,7 @@ function AssignModal({ isOpen, onClose, products, users }) {
         </div>
         <div className="flex gap-3 pt-2">
           <button className="btn-secondary flex-1" onClick={onClose}>Cancel</button>
-          <button
-            className="btn-primary flex-1"
-            onClick={() => assign.mutate(form)}
-            disabled={!form.productId || !form.toUserId || assign.isPending}
-          >
+          <button className="btn-primary flex-1" onClick={() => assign.mutate(form)} disabled={!form.productId || !form.toUserId || assign.isPending}>
             {assign.isPending ? 'Assigning...' : 'Assign Stock'}
           </button>
         </div>
@@ -115,7 +107,7 @@ function ReturnModal({ isOpen, onClose, products, users }) {
     mutationFn: (data) => api.post('/inventory/return', data),
     onSuccess: () => {
       toast.success('Stock returned to warehouse');
-      qc.invalidateQueries(['inventory']);
+      qc.invalidateQueries({ queryKey: ['inventory'] });
       onClose();
       setForm({ productId: '', fromUserId: '', quantity: 1, notes: '' });
     },
@@ -146,11 +138,7 @@ function ReturnModal({ isOpen, onClose, products, users }) {
         </div>
         <div className="flex gap-3 pt-2">
           <button className="btn-secondary flex-1" onClick={onClose}>Cancel</button>
-          <button
-            className="btn-primary flex-1"
-            onClick={() => returnStock.mutate(form)}
-            disabled={!form.productId || !form.fromUserId || returnStock.isPending}
-          >
+          <button className="btn-primary flex-1" onClick={() => returnStock.mutate(form)} disabled={!form.productId || !form.fromUserId || returnStock.isPending}>
             {returnStock.isPending ? 'Returning...' : 'Return to Warehouse'}
           </button>
         </div>
@@ -163,21 +151,19 @@ function WriteOffModal({ isOpen, onClose, inventory }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({ productId: '', location: 'WAREHOUSE', quantity: 1, reason: '' });
 
-  // Unique locations from inventory
   const locations = [...new Set((inventory || []).map((i) => i.location))];
 
   const writeOff = useMutation({
     mutationFn: (data) => api.post('/inventory/writeoff', data),
     onSuccess: () => {
       toast.success('Stock written off');
-      qc.invalidateQueries(['inventory']);
+      qc.invalidateQueries({ queryKey: ['inventory'] });
       onClose();
       setForm({ productId: '', location: 'WAREHOUSE', quantity: 1, reason: '' });
     },
     onError: (err) => toast.error(err.error || 'Failed to write off stock'),
   });
 
-  // Filter inventory to selected product+location
   const available = (inventory || []).find(
     (i) => i.productId === form.productId && i.location === form.location
   )?.quantity ?? 0;
@@ -227,6 +213,100 @@ function WriteOffModal({ isOpen, onClose, inventory }) {
   );
 }
 
+function AdminItemDetailModal({ item, userMap, onClose }) {
+  if (!item) return null;
+  const { product, entries } = item;
+  const warehouseQty = entries.find((e) => e.location === 'WAREHOUSE')?.quantity || 0;
+  const outletEntries = entries.filter((e) => e.location !== 'WAREHOUSE');
+  const total = entries.reduce((s, e) => s + e.quantity, 0);
+
+  return (
+    <Modal isOpen={!!item} onClose={onClose} title="Inventory Detail" size="sm">
+      <div className="space-y-4">
+        <div>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="font-heading font-semibold text-text-primary text-lg">{product.name}</p>
+              <p className="text-text-tertiary text-sm">{product.sku}{product.brand ? ` · ${product.brand}` : ''}</p>
+            </div>
+            <Badge value={product.category} />
+          </div>
+        </div>
+
+        <div className="bg-bg-tertiary rounded-lg p-4 space-y-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-text-secondary">Warehouse</span>
+            <span className={`font-medium ${warehouseQty <= 5 ? 'text-warning' : 'text-text-primary'}`}>{warehouseQty}</span>
+          </div>
+          {outletEntries.map((e) => (
+            <div key={e.id} className="flex justify-between text-sm">
+              <span className="text-text-secondary">{userMap[e.holderId] || 'Outlet'}</span>
+              <span className="font-medium text-text-primary">{e.quantity}</span>
+            </div>
+          ))}
+          <div className="flex justify-between text-sm border-t border-border pt-2">
+            <span className="text-text-secondary font-medium">Total</span>
+            <span className="font-semibold text-text-primary">{total}</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="bg-bg-tertiary rounded-lg p-3">
+            <p className="text-text-tertiary text-xs">Cost Price</p>
+            <p className="font-medium text-text-primary">{product.costPrice > 0 ? formatCurrency(product.costPrice) : '—'}</p>
+          </div>
+          <div className="bg-bg-tertiary rounded-lg p-3">
+            <p className="text-text-tertiary text-xs">Total Value (cost)</p>
+            <p className="font-medium text-text-primary">{formatCurrency(total * product.costPrice)}</p>
+          </div>
+        </div>
+
+        <button className="btn-secondary w-full" onClick={onClose}>Close</button>
+      </div>
+    </Modal>
+  );
+}
+
+function OutletItemDetailModal({ item, onClose }) {
+  if (!item) return null;
+  const value = item.quantity * item.product.costPrice;
+
+  return (
+    <Modal isOpen={!!item} onClose={onClose} title="Stock Detail" size="sm">
+      <div className="space-y-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="font-heading font-semibold text-text-primary text-lg">{item.product.name}</p>
+            <p className="text-text-tertiary text-sm">{item.product.sku}{item.product.brand ? ` · ${item.product.brand}` : ''}</p>
+          </div>
+          <Badge value={item.product.category} />
+        </div>
+
+        <div className="bg-bg-tertiary rounded-lg p-4 space-y-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-text-secondary">Qty in Stock</span>
+            <span className={`font-semibold ${item.quantity <= 3 ? 'text-danger' : 'text-text-primary'}`}>{item.quantity} {item.product.unit}s</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-text-secondary">Base Cost / Unit</span>
+            <span className="font-medium text-text-primary">{item.product.costPrice > 0 ? formatCurrency(item.product.costPrice) : '—'}</span>
+          </div>
+          <div className="flex justify-between text-sm border-t border-border pt-2">
+            <span className="text-text-secondary font-medium">Total Value (cost)</span>
+            <span className="font-semibold text-text-primary">{formatCurrency(value)}</span>
+          </div>
+        </div>
+
+        {item.product.description && (
+          <p className="text-text-secondary text-sm">{item.product.description}</p>
+        )}
+
+        <button className="btn-secondary w-full" onClick={onClose}>Close</button>
+      </div>
+    </Modal>
+  );
+}
+
 export default function InventoryPage() {
   const { user } = useAuthStore();
   const [assignOpen, setAssignOpen] = useState(false);
@@ -234,6 +314,8 @@ export default function InventoryPage() {
   const [returnOpen, setReturnOpen] = useState(false);
   const [writeOffOpen, setWriteOffOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [selectedAdminItem, setSelectedAdminItem] = useState(null);
+  const [selectedOutletItem, setSelectedOutletItem] = useState(null);
 
   const isOutlet = user?.role === 'OUTLET';
 
@@ -253,6 +335,10 @@ export default function InventoryPage() {
     queryFn: () => api.get('/inventory/holders'),
     enabled: !isOutlet,
   });
+
+  // Build userId → name map from holders data
+  const userMap = {};
+  (holders?.users || []).forEach((u) => { userMap[u.id] = u.name; });
 
   const filtered = (inventory || []).filter((item) =>
     categoryFilter ? item.product.category === categoryFilter : true
@@ -313,7 +399,10 @@ export default function InventoryPage() {
               <th className="th">SKU</th>
               <th className="th">Category</th>
               {isOutlet ? (
-                <th className="th">Qty</th>
+                <>
+                  <th className="th">Qty Received</th>
+                  <th className="th">Base Cost/Unit</th>
+                </>
               ) : (
                 <>
                   <th className="th">Warehouse</th>
@@ -325,34 +414,47 @@ export default function InventoryPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={isOutlet ? 5 : 7} />)}
+            {isLoading && Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={isOutlet ? 6 : 7} />)}
             {isOutlet
               ? filtered.map((item) => (
-                  <tr key={item.id} className="table-row">
+                  <tr
+                    key={item.id}
+                    className="table-row cursor-pointer"
+                    onClick={() => setSelectedOutletItem(item)}
+                  >
                     <td className="td font-medium">{item.product.name}</td>
                     <td className="td text-text-secondary">{item.product.sku}</td>
                     <td className="td"><Badge value={item.product.category} /></td>
                     <td className="td">
                       <span className={item.quantity <= 3 ? 'text-danger font-medium' : ''}>{item.quantity}</span>
                     </td>
-                    <td className="td">{formatCurrency(item.quantity * item.product.sellingPrice)}</td>
+                    <td className="td text-text-secondary">
+                      {item.product.costPrice > 0 ? formatCurrency(item.product.costPrice) : '—'}
+                    </td>
+                    <td className="td">{formatCurrency(item.quantity * item.product.costPrice)}</td>
                   </tr>
                 ))
               : Object.values(grouped).map(({ product, entries }) => {
                   const warehouseQty = entries.find((e) => e.location === 'WAREHOUSE')?.quantity || 0;
                   const outletEntries = entries.filter((e) => e.location !== 'WAREHOUSE');
                   const total = entries.reduce((s, e) => s + e.quantity, 0);
+                  const outletLabel = outletEntries.map((e) => {
+                    const name = userMap[e.holderId] || '';
+                    return name ? `${name}: ${e.quantity}` : String(e.quantity);
+                  }).join(', ') || '—';
                   return (
-                    <tr key={product.id} className="table-row">
+                    <tr
+                      key={product.id}
+                      className="table-row cursor-pointer"
+                      onClick={() => setSelectedAdminItem({ product, entries })}
+                    >
                       <td className="td font-medium">{product.name}</td>
                       <td className="td text-text-secondary">{product.sku}</td>
                       <td className="td"><Badge value={product.category} /></td>
                       <td className="td">
                         <span className={warehouseQty <= 5 ? 'text-warning' : ''}>{warehouseQty}</span>
                       </td>
-                      <td className="td text-text-secondary text-xs">
-                        {outletEntries.map((e) => `${e.location.replace('OUTLET_', '').slice(0, 6)}: ${e.quantity}`).join(', ') || '—'}
-                      </td>
+                      <td className="td text-text-secondary text-xs">{outletLabel}</td>
                       <td className="td font-medium">{total}</td>
                       <td className="td">{formatCurrency(total * product.costPrice)}</td>
                     </tr>
@@ -368,29 +470,58 @@ export default function InventoryPage() {
       {/* Mobile cards */}
       <div className="lg:hidden space-y-3">
         {isLoading && <div className="text-center py-8 text-text-tertiary">Loading...</div>}
-        {filtered.map((item) => (
-          <div key={item.id} className="card">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="font-medium text-text-primary">{item.product.name}</p>
-                <p className="text-text-tertiary text-xs mt-0.5">{item.product.sku}</p>
+        {isOutlet
+          ? filtered.map((item) => (
+              <div key={item.id} className="card cursor-pointer active:bg-bg-tertiary" onClick={() => setSelectedOutletItem(item)}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-medium text-text-primary">{item.product.name}</p>
+                    <p className="text-text-tertiary text-xs mt-0.5">{item.product.sku}</p>
+                  </div>
+                  <Badge value={item.product.category} />
+                </div>
+                <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-border text-sm">
+                  <div><p className="text-xs text-text-tertiary">Qty</p><p className={item.quantity <= 3 ? 'text-danger font-medium' : ''}>{item.quantity}</p></div>
+                  <div><p className="text-xs text-text-tertiary">Cost/Unit</p><p>{item.product.costPrice > 0 ? formatCurrency(item.product.costPrice) : '—'}</p></div>
+                  <div><p className="text-xs text-text-tertiary">Value</p><p>{formatCurrency(item.quantity * item.product.costPrice)}</p></div>
+                </div>
               </div>
-              <Badge value={item.product.category} />
-            </div>
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-              <span className="text-text-secondary text-sm">Quantity</span>
-              <span className={`font-medium ${item.quantity <= 3 ? 'text-danger' : 'text-text-primary'}`}>
-                {item.quantity} {item.product.unit}s
-              </span>
-            </div>
-          </div>
-        ))}
+            ))
+          : Object.values(grouped).map(({ product, entries }) => {
+              const total = entries.reduce((s, e) => s + e.quantity, 0);
+              return (
+                <div key={product.id} className="card cursor-pointer active:bg-bg-tertiary" onClick={() => setSelectedAdminItem({ product, entries })}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium text-text-primary">{product.name}</p>
+                      <p className="text-text-tertiary text-xs mt-0.5">{product.sku}</p>
+                    </div>
+                    <Badge value={product.category} />
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+                    <span className="text-text-secondary text-sm">Total Qty</span>
+                    <span className="font-medium text-text-primary">{total}</span>
+                  </div>
+                </div>
+              );
+            })
+        }
       </div>
 
       <ReceiveModal isOpen={receiveOpen} onClose={() => setReceiveOpen(false)} products={products} />
       <AssignModal isOpen={assignOpen} onClose={() => setAssignOpen(false)} products={products} users={holders?.users} />
       <ReturnModal isOpen={returnOpen} onClose={() => setReturnOpen(false)} products={products} users={holders?.users} />
       <WriteOffModal isOpen={writeOffOpen} onClose={() => setWriteOffOpen(false)} inventory={inventory} />
+
+      <AdminItemDetailModal
+        item={selectedAdminItem}
+        userMap={userMap}
+        onClose={() => setSelectedAdminItem(null)}
+      />
+      <OutletItemDetailModal
+        item={selectedOutletItem}
+        onClose={() => setSelectedOutletItem(null)}
+      />
     </div>
   );
 }

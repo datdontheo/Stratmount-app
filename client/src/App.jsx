@@ -63,7 +63,7 @@ export default function App() {
         <Route path="exchange-rates" element={<ProtectedRoute roles={['ADMIN']}><ExchangeRatesPage /></ProtectedRoute>} />
         <Route path="reports" element={<ProtectedRoute roles={['ADMIN']}><ReportsPage /></ProtectedRoute>} />
         <Route path="users" element={<ProtectedRoute roles={['ADMIN']}><UsersPage /></ProtectedRoute>} />
-        <Route path="settings" element={<ProtectedRoute roles={['ADMIN']}><SettingsPage /></ProtectedRoute>} />
+        <Route path="settings" element={<ProtectedRoute roles={['ADMIN', 'WAREHOUSE', 'OUTLET']}><SettingsPage /></ProtectedRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

@@ -19,6 +19,10 @@ model User {
   mustChangePassword Boolean @default(false)
   createdAt DateTime @default(now())
 
+  companyName   String?
+  companyLogo   String?
+  defaultMargin Float?
+
   assignedInventory InventoryAssignment[]
   payments          Payment[]
   sales             Sale[]
