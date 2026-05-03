@@ -117,4 +117,31 @@ router.get('/', async (req, res) => {
   }
 });
 
+// POST /api/seed/clear — wipes all business data, keeps user accounts
+// Must send { confirmKey: "CLEAR_ALL_DATA" } in the request body
+router.post('/clear', async (req, res) => {
+  if (req.body.confirmKey !== 'CLEAR_ALL_DATA') {
+    return res.status(400).json({ error: 'Missing or incorrect confirmKey' });
+  }
+  try {
+    // Delete in dependency order so foreign keys don't block
+    await prisma.payment.deleteMany();
+    await prisma.saleItem.deleteMany();
+    await prisma.sale.deleteMany();
+    await prisma.purchaseItem.deleteMany();
+    await prisma.purchase.deleteMany();
+    await prisma.inventoryAssignment.deleteMany();
+    await prisma.inventory.deleteMany();
+    await prisma.product.deleteMany();
+    await prisma.customer.deleteMany();
+    await prisma.supplier.deleteMany();
+    await prisma.expense.deleteMany();
+    await prisma.drawing.deleteMany();
+    await prisma.exchangeRate.deleteMany();
+    res.json({ message: '✅ All business data cleared. User accounts kept. You can now enter your real data.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
