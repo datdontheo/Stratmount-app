@@ -75,31 +75,40 @@ model InventoryAssignment {
 }
 
 model Purchase {
-  id            String   @id @default(cuid())
-  supplierId    String
-  supplier      Supplier @relation(fields: [supplierId], references: [id])
-  invoiceNumber String?
-  purchaseDate  DateTime
-  currency      String   @default("USD")
-  exchangeRate  Float    @default(1)
-  totalForeign  Float
-  totalGHS      Float
-  fxGainLoss    Float?   @default(0)
-  notes         String?
-  createdAt     DateTime @default(now())
+  id                   String   @id @default(cuid())
+  supplierId           String
+  supplier             Supplier @relation(fields: [supplierId], references: [id])
+  invoiceNumber        String?
+  purchaseDate         DateTime
+  currency             String   @default("USD")
+  exchangeRate         Float    @default(1)
+  intermediaryCurrency String?
+  intermediaryRate     Float?
+  totalForeign         Float
+  totalGHS             Float
+  shippingCostForeign  Float    @default(0)
+  shippingCostGHS      Float    @default(0)
+  fxGainLoss           Float?   @default(0)
+  notes                String?
+  createdAt            DateTime @default(now())
 
   items PurchaseItem[]
 }
 
 model PurchaseItem {
-  id         String   @id @default(cuid())
-  purchaseId String
-  purchase   Purchase @relation(fields: [purchaseId], references: [id])
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id])
-  quantity   Int
-  unitCost   Float
-  totalCost  Float
+  id               String   @id @default(cuid())
+  purchaseId       String
+  purchase         Purchase @relation(fields: [purchaseId], references: [id])
+  productId        String
+  product          Product  @relation(fields: [productId], references: [id])
+  quantity         Int
+  unitCost         Float
+  totalCost        Float
+  unitCostGHS      Float    @default(0)
+  shippingAllocated Float   @default(0)
+  trueCostPerUnit  Float    @default(0)
+  profitMargin     Float    @default(20)
+  outletPrice      Float    @default(0)
 }
 
 model Supplier {

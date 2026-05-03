@@ -10,7 +10,7 @@ const navItems = [
   { label: 'Dashboard', path: '/dashboard', icon: IconHome, roles: ['ADMIN', 'WAREHOUSE', 'OUTLET'] },
   { label: 'Inventory', path: '/inventory', icon: IconPackage, roles: ['ADMIN', 'WAREHOUSE', 'OUTLET'] },
   { label: 'Products', path: '/products', icon: IconTag, roles: ['ADMIN'] },
-  { label: 'Purchases', path: '/purchases', icon: IconShoppingCart, roles: ['ADMIN', 'WAREHOUSE'] },
+  { label: 'Receive Stock', path: '/purchases', icon: IconShoppingCart, roles: ['ADMIN', 'WAREHOUSE'] },
   { label: 'Sales', path: '/sales', icon: IconCreditCard, roles: ['ADMIN', 'WAREHOUSE', 'OUTLET'] },
   { label: 'Payments', path: '/payments', icon: IconDollarSign, roles: ['ADMIN', 'WAREHOUSE', 'OUTLET'] },
   { label: 'Customers', path: '/customers', icon: IconUsers, roles: ['ADMIN', 'WAREHOUSE'] },
