@@ -19,11 +19,11 @@ import ReportsPage from './pages/reports/ReportsPage';
 import UsersPage from './pages/users/UsersPage';
 import SettingsPage from './pages/settings/SettingsPage';
 
-const ProtectedRoute = ({ children, roles }) => {
+const ProtectedRoute = ({ children, roles, redirectTo = '/dashboard' }) => {
   const { user, token } = useAuthStore();
   if (!token || !user) return <Navigate to="/login" replace />;
   if (user.mustChangePassword) return <Navigate to="/change-password" replace />;
-  if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
+  if (roles && !roles.includes(user.role)) return <Navigate to={redirectTo} replace />;
   return children;
 };
 
@@ -52,7 +52,7 @@ export default function App() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="inventory" element={<InventoryPage />} />
         <Route path="products" element={<ProtectedRoute roles={['ADMIN']}><ProductsPage /></ProtectedRoute>} />
-        <Route path="purchases" element={<ProtectedRoute roles={['ADMIN', 'WAREHOUSE']}><PurchasesPage /></ProtectedRoute>} />
+        <Route path="purchases" element={<ProtectedRoute roles={['ADMIN']} redirectTo="/inventory"><PurchasesPage /></ProtectedRoute>} />
         <Route path="sales" element={<SalesPage />} />
         <Route path="sales/:id" element={<SaleDetailPage />} />
         <Route path="payments" element={<PaymentsPage />} />
