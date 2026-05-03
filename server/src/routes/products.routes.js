@@ -20,6 +20,9 @@ router.get('/', async (req, res) => {
 router.post('/', requireAdmin, async (req, res) => {
   try {
     const product = await prisma.product.create({ data: req.body });
+    await prisma.inventory.create({
+      data: { productId: product.id, quantity: 0, location: 'WAREHOUSE' },
+    });
     res.status(201).json(product);
   } catch (err) {
     if (err.code === 'P2002') return res.status(400).json({ error: 'SKU already exists' });

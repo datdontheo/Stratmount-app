@@ -56,6 +56,31 @@ router.get('/holders', requireAdminOrWarehouse, async (req, res) => {
   }
 });
 
+router.post('/receive', requireAdminOrWarehouse, async (req, res) => {
+  try {
+    const { productId, quantity } = req.body;
+    if (!productId || !quantity || quantity < 1) {
+      return res.status(400).json({ error: 'Product and quantity are required' });
+    }
+    const existing = await prisma.inventory.findFirst({
+      where: { productId, location: 'WAREHOUSE' },
+    });
+    if (existing) {
+      await prisma.inventory.update({
+        where: { id: existing.id },
+        data: { quantity: { increment: quantity } },
+      });
+    } else {
+      await prisma.inventory.create({
+        data: { productId, quantity, location: 'WAREHOUSE' },
+      });
+    }
+    res.json({ message: 'Stock received into warehouse' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/assign', requireAdminOrWarehouse, async (req, res) => {
   try {
     const { productId, toUserId, quantity, notes } = req.body;

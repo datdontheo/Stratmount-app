@@ -8,6 +8,50 @@ import Badge from '../../components/ui/Badge';
 import { formatCurrency } from '../../utils/format';
 import { SkeletonRow } from '../../components/ui/Skeleton';
 
+function ReceiveModal({ isOpen, onClose, products }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ productId: '', quantity: 1 });
+
+  const receive = useMutation({
+    mutationFn: (data) => api.post('/inventory/receive', data),
+    onSuccess: () => {
+      toast.success('Stock received into warehouse');
+      qc.invalidateQueries(['inventory']);
+      onClose();
+      setForm({ productId: '', quantity: 1 });
+    },
+    onError: (err) => toast.error(err.error || 'Failed to receive stock'),
+  });
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Receive Stock into Warehouse" size="sm">
+      <div className="space-y-4">
+        <div>
+          <label className="label">Product</label>
+          <select className="input" value={form.productId} onChange={(e) => setForm({ ...form, productId: e.target.value })}>
+            <option value="">Select product</option>
+            {products?.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Quantity</label>
+          <input type="number" className="input" min={1} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: +e.target.value })} />
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button className="btn-secondary flex-1" onClick={onClose}>Cancel</button>
+          <button
+            className="btn-primary flex-1"
+            onClick={() => receive.mutate(form)}
+            disabled={!form.productId || form.quantity < 1 || receive.isPending}
+          >
+            {receive.isPending ? 'Receiving...' : 'Receive Stock'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function AssignModal({ isOpen, onClose, products, users }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({ productId: '', toUserId: '', quantity: 1, notes: '' });
@@ -66,6 +110,7 @@ function AssignModal({ isOpen, onClose, products, users }) {
 export default function InventoryPage() {
   const { user } = useAuthStore();
   const [assignOpen, setAssignOpen] = useState(false);
+  const [receiveOpen, setReceiveOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('');
 
   const isOutlet = user?.role === 'OUTLET';
@@ -112,9 +157,10 @@ export default function InventoryPage() {
           </p>
         </div>
         {!isOutlet && (
-          <button className="btn-primary" onClick={() => setAssignOpen(true)}>
-            + Assign Stock
-          </button>
+          <div className="flex gap-2">
+            <button className="btn-secondary" onClick={() => setReceiveOpen(true)}>+ Receive Stock</button>
+            <button className="btn-primary" onClick={() => setAssignOpen(true)}>+ Assign Stock</button>
+          </div>
         )}
       </div>
 
@@ -217,6 +263,11 @@ export default function InventoryPage() {
         ))}
       </div>
 
+      <ReceiveModal
+        isOpen={receiveOpen}
+        onClose={() => setReceiveOpen(false)}
+        products={products}
+      />
       <AssignModal
         isOpen={assignOpen}
         onClose={() => setAssignOpen(false)}
