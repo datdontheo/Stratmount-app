@@ -38,6 +38,15 @@ router.put('/:id', requireAdmin, async (req, res) => {
   }
 });
 
+router.delete('/:id', requireAdmin, async (req, res) => {
+  try {
+    const supplier = await prisma.supplier.delete({ where: { id: req.params.id } });
+    res.json(supplier);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/:id/purchases', async (req, res) => {
   try {
     const purchases = await prisma.purchase.findMany({

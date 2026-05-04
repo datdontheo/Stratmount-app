@@ -15,6 +15,7 @@ export default function SuppliersPage() {
   const [form, setForm] = useState(emptyForm);
   const [historySupplier, setHistorySupplier] = useState(null);
   const [search, setSearch] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/suppliers') });
 
@@ -28,6 +29,12 @@ export default function SuppliersPage() {
     mutationFn: (data) => editSupplier ? api.put(`/suppliers/${editSupplier.id}`, data) : api.post('/suppliers', data),
     onSuccess: () => { toast.success('Saved'); qc.invalidateQueries(['suppliers']); setDrawerOpen(false); },
     onError: (err) => toast.error(err.error || 'Failed'),
+  });
+
+  const deleteSupplier = useMutation({
+    mutationFn: (id) => api.delete(`/suppliers/${id}`),
+    onSuccess: () => { toast.success('Supplier deleted'); qc.invalidateQueries(['suppliers']); setDeleteConfirm(null); },
+    onError: (err) => toast.error(err.error || 'Failed to delete'),
   });
 
   const openAdd = () => { setEditSupplier(null); setForm(emptyForm); setDrawerOpen(true); };
@@ -85,6 +92,7 @@ export default function SuppliersPage() {
                   <div className="flex gap-2">
                     <button onClick={() => setHistorySupplier(s)} className="text-text-secondary hover:text-text-primary text-xs">History</button>
                     <button onClick={() => openEdit(s)} className="text-text-secondary hover:text-text-primary text-xs">Edit</button>
+                    <button onClick={() => setDeleteConfirm(s)} className="text-text-secondary hover:text-danger text-xs">Delete</button>
                   </div>
                 </td>
               </tr>
@@ -106,6 +114,7 @@ export default function SuppliersPage() {
             <div className="flex gap-3 mt-3 pt-2 border-t border-border">
               <button onClick={() => setHistorySupplier(s)} className="text-text-secondary text-sm">History</button>
               <button onClick={() => openEdit(s)} className="text-text-secondary text-sm">Edit</button>
+              <button onClick={() => setDeleteConfirm(s)} className="text-text-secondary hover:text-danger text-sm">Delete</button>
             </div>
           </div>
         ))}
@@ -154,6 +163,18 @@ export default function SuppliersPage() {
             {!history.length && <p className="text-text-tertiary text-center py-4">No purchases from this supplier</p>}
           </div>
         ) : <p className="text-text-tertiary py-4 text-center">Loading...</p>}
+      </Modal>
+
+      <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete Supplier" size="sm">
+        <div className="space-y-4">
+          <p className="text-text-secondary">Are you sure you want to delete <span className="font-semibold text-text-primary">{deleteConfirm?.name}</span>? This action cannot be undone.</p>
+          <div className="flex gap-3">
+            <button className="btn-secondary flex-1" onClick={() => setDeleteConfirm(null)}>Cancel</button>
+            <button className="bg-danger text-white px-4 py-2 rounded-lg text-sm font-medium flex-1 disabled:opacity-50" onClick={() => deleteSupplier.mutate(deleteConfirm.id)} disabled={deleteSupplier.isPending}>
+              {deleteSupplier.isPending ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

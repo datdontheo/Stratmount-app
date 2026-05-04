@@ -197,7 +197,7 @@ export default function PurchasesPage() {
             </div>
           )}
           <div>
-            <label className="label">Shipping Cost ({currency})</label>
+            <label className="label">Shipping Cost (USD)</label>
             <input type="number" step="0.01" min={0} className="input" value={shippingCostForeign} onChange={(e) => setShippingCostForeign(Math.max(0, +e.target.value))} placeholder="0.00" />
           </div>
           {Number(shippingCostForeign) > 0 && (
