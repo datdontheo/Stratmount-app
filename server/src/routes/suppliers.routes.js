@@ -40,8 +40,19 @@ router.put('/:id', requireAdmin, async (req, res) => {
 
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
-    const supplier = await prisma.supplier.delete({ where: { id: req.params.id } });
-    res.json(supplier);
+    await prisma.$transaction(async (tx) => {
+      const purchases = await tx.purchase.findMany({
+        where: { supplierId: req.params.id },
+        select: { id: true },
+      });
+      const purchaseIds = purchases.map((p) => p.id);
+      if (purchaseIds.length) {
+        await tx.purchaseItem.deleteMany({ where: { purchaseId: { in: purchaseIds } } });
+        await tx.purchase.deleteMany({ where: { id: { in: purchaseIds } } });
+      }
+      await tx.supplier.delete({ where: { id: req.params.id } });
+    });
+    res.json({ message: 'Supplier deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

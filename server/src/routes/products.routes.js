@@ -41,7 +41,12 @@ router.put('/:id', requireAdmin, async (req, res) => {
 
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
-    await prisma.product.delete({ where: { id: req.params.id } });
+    await prisma.$transaction(async (tx) => {
+      await tx.purchaseItem.deleteMany({ where: { productId: req.params.id } });
+      await tx.saleItem.deleteMany({ where: { productId: req.params.id } });
+      await tx.inventory.deleteMany({ where: { productId: req.params.id } });
+      await tx.product.delete({ where: { id: req.params.id } });
+    });
     res.json({ message: 'Product deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
