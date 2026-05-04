@@ -121,7 +121,21 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
     if (user.role === 'ADMIN' || user.role === 'WAREHOUSE') {
       return res.status(400).json({ error: `Cannot delete ${user.role} users` });
     }
-    await prisma.user.delete({ where: { id: req.params.id } });
+    await prisma.$transaction(async (tx) => {
+      await tx.inventoryAssignment.deleteMany({ where: { toUserId: req.params.id } });
+      await tx.inventory.deleteMany({ where: { holderId: req.params.id } });
+
+      const sales = await tx.sale.findMany({ where: { soldById: req.params.id }, select: { id: true } });
+      const saleIds = sales.map((s) => s.id);
+      if (saleIds.length) {
+        await tx.saleItem.deleteMany({ where: { saleId: { in: saleIds } } });
+        await tx.payment.deleteMany({ where: { saleId: { in: saleIds } } });
+        await tx.sale.deleteMany({ where: { id: { in: saleIds } } });
+      }
+
+      await tx.payment.deleteMany({ where: { paidById: req.params.id } });
+      await tx.user.delete({ where: { id: req.params.id } });
+    });
     res.json({ message: 'User deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
