@@ -117,9 +117,12 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
 router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.params.id } });
-    if (user?.role === 'ADMIN') return res.status(400).json({ error: 'Cannot delete admin user' });
-    await prisma.user.update({ where: { id: req.params.id }, data: { isActive: false } });
-    res.json({ message: 'User deactivated' });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.role === 'ADMIN' || user.role === 'WAREHOUSE') {
+      return res.status(400).json({ error: `Cannot delete ${user.role} users` });
+    }
+    await prisma.user.delete({ where: { id: req.params.id } });
+    res.json({ message: 'User deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import Drawer from '../../components/ui/Drawer';
-import ConfirmModal from '../../components/ui/ConfirmModal';
+import Modal from '../../components/ui/Modal';
 import Badge from '../../components/ui/Badge';
 import { formatDate } from '../../utils/format';
 
@@ -13,7 +13,7 @@ export default function UsersPage() {
   const qc = useQueryClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
-  const [deactivateTarget, setDeactivateTarget] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [form, setForm] = useState(emptyForm);
 
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: () => api.get('/users') });
@@ -24,10 +24,10 @@ export default function UsersPage() {
     onError: (err) => toast.error(err.error || 'Failed'),
   });
 
-  const toggleActive = useMutation({
-    mutationFn: (user) => api.put(`/users/${user.id}`, { isActive: !user.isActive }),
-    onSuccess: () => { toast.success('Status updated'); qc.invalidateQueries(['users']); },
-    onError: (err) => toast.error(err.error || 'Failed'),
+  const deleteUser = useMutation({
+    mutationFn: (id) => api.delete(`/users/${id}`),
+    onSuccess: () => { toast.success('User deleted'); qc.invalidateQueries(['users']); setDeleteConfirm(null); },
+    onError: (err) => toast.error(err.error || 'Failed to delete'),
   });
 
   const openAdd = () => { setEditUser(null); setForm(emptyForm); setDrawerOpen(true); };
@@ -70,10 +70,8 @@ export default function UsersPage() {
                 <td className="td">
                   <div className="flex gap-2">
                     <button onClick={() => openEdit(u)} className="text-text-secondary hover:text-text-primary text-xs">Edit</button>
-                    {u.role !== 'ADMIN' && (
-                      <button onClick={() => setDeactivateTarget(u)} className="text-text-secondary hover:text-warning text-xs">
-                        {u.isActive ? 'Deactivate' : 'Activate'}
-                      </button>
+                    {u.role === 'OUTLET' && (
+                      <button onClick={() => setDeleteConfirm(u)} className="text-text-secondary hover:text-danger text-xs">Delete</button>
                     )}
                   </div>
                 </td>
@@ -101,10 +99,8 @@ export default function UsersPage() {
             </div>
             <div className="flex gap-3 mt-3 pt-2 border-t border-border">
               <button onClick={() => openEdit(u)} className="text-text-secondary text-sm">Edit</button>
-              {u.role !== 'ADMIN' && (
-                <button onClick={() => setDeactivateTarget(u)} className="text-warning text-sm">
-                  {u.isActive ? 'Deactivate' : 'Activate'}
-                </button>
+              {u.role === 'OUTLET' && (
+                <button onClick={() => setDeleteConfirm(u)} className="text-text-secondary hover:text-danger text-sm">Delete</button>
               )}
             </div>
           </div>
@@ -136,15 +132,17 @@ export default function UsersPage() {
         </div>
       </Drawer>
 
-      <ConfirmModal
-        isOpen={!!deactivateTarget}
-        onClose={() => setDeactivateTarget(null)}
-        onConfirm={() => toggleActive.mutate(deactivateTarget)}
-        title={deactivateTarget?.isActive ? 'Deactivate User' : 'Activate User'}
-        message={`${deactivateTarget?.isActive ? 'Deactivate' : 'Activate'} ${deactivateTarget?.name}?`}
-        confirmLabel={deactivateTarget?.isActive ? 'Deactivate' : 'Activate'}
-        danger={deactivateTarget?.isActive}
-      />
+      <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete User" size="sm">
+        <div className="space-y-4">
+          <p className="text-text-secondary">Are you sure you want to delete <span className="font-semibold text-text-primary">{deleteConfirm?.name}</span>? This action cannot be undone.</p>
+          <div className="flex gap-3">
+            <button className="btn-secondary flex-1" onClick={() => setDeleteConfirm(null)}>Cancel</button>
+            <button className="bg-danger text-white px-4 py-2 rounded-lg text-sm font-medium flex-1 disabled:opacity-50" onClick={() => deleteUser.mutate(deleteConfirm.id)} disabled={deleteUser.isPending}>
+              {deleteUser.isPending ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
