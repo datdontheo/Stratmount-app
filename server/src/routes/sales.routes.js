@@ -168,6 +168,7 @@ router.get('/:id/pdf', async (req, res) => {
     const doc = new PDFDocument({ size: [400, 600], margin: 30, autoFirstPage: true });
     const receiptId = req.params.id.slice(-8).toUpperCase();
     const companyName = sale.soldBy?.companyName || 'STRAT MOUNT';
+    const appLogo = req.query.appLogo;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="receipt-${receiptId}.pdf"`);
@@ -176,7 +177,18 @@ router.get('/:id/pdf', async (req, res) => {
     const fmt = (n) => `GH₵ ${(Number(n) || 0).toFixed(2)}`;
     const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-    // Header
+    // Header with logo
+    if (appLogo && appLogo.startsWith('/uploads/')) {
+      try {
+        const path = require('path');
+        const uploadDir = process.env.NODE_ENV === 'production' ? '/tmp' : path.join(__dirname, '../../uploads');
+        const logoPath = appLogo.replace('/uploads/', '');
+        doc.image(path.join(uploadDir, logoPath), { fit: [100, 50], align: 'center' });
+        doc.moveDown(0.3);
+      } catch (err) {
+        // Logo file not found, skip
+      }
+    }
     doc.fontSize(16).font('Helvetica-Bold').text(companyName.toUpperCase(), { align: 'center' });
     doc.fontSize(9).font('Helvetica').fillColor('#666').text('Sales Receipt', { align: 'center' });
     doc.moveDown(0.5);

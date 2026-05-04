@@ -15,6 +15,8 @@ export default function SettingsPage() {
   const [businessName, setBusinessName] = useState(saved.businessName || 'Strat Mount');
   const [whatsapp, setWhatsapp] = useState(saved.whatsapp || '');
   const [baseCurrency, setBaseCurrency] = useState(saved.baseCurrency || 'GHS');
+  const [appLogo, setAppLogo] = useState(saved.appLogo || '');
+  const [appLogoUploading, setAppLogoUploading] = useState(false);
 
   // Company profile (OUTLET / WAREHOUSE)
   const [companyName, setCompanyName] = useState('');
@@ -41,8 +43,24 @@ export default function SettingsPage() {
 
   const saveAdminSettings = (e) => {
     e.preventDefault();
-    localStorage.setItem('sm_settings', JSON.stringify({ businessName, whatsapp, baseCurrency }));
+    localStorage.setItem('sm_settings', JSON.stringify({ businessName, whatsapp, baseCurrency, appLogo }));
     toast.success('Settings saved');
+  };
+
+  const uploadAppLogo = async (file) => {
+    setAppLogoUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('logo', file);
+      const res = await api.post('/users/upload-logo', fd);
+      setAppLogo(res.url);
+      localStorage.setItem('sm_settings', JSON.stringify({ businessName, whatsapp, baseCurrency, appLogo: res.url }));
+      toast.success('App logo uploaded');
+    } catch {
+      toast.error('Failed to upload logo');
+    } finally {
+      setAppLogoUploading(false);
+    }
   };
 
   const saveProfile = useMutation({
@@ -115,6 +133,39 @@ export default function SettingsPage() {
             <label className="label">WhatsApp Number (for receipt sharing)</label>
             <input className="input" placeholder="+233 24 000 0000" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
             <p className="text-text-tertiary text-xs mt-1">Include country code e.g. +233...</p>
+          </div>
+          <div>
+            <label className="label">App Logo</label>
+            <div
+              className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-text-secondary/30 transition-colors"
+              onClick={() => logoRef.current?.click()}
+            >
+              {appLogo ? (
+                <img src={appLogo} alt="App logo" className="max-h-20 mx-auto rounded" />
+              ) : (
+                <div>
+                  <p className="text-text-secondary text-sm">Click to upload Stratmount logo</p>
+                  <p className="text-text-tertiary text-xs mt-1">JPG, PNG, WebP — max 5MB (appears on receipts)</p>
+                </div>
+              )}
+            </div>
+            <input
+              ref={logoRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => e.target.files?.[0] && uploadAppLogo(e.target.files[0])}
+            />
+            {appLogoUploading && <p className="text-text-secondary text-xs mt-1">Uploading...</p>}
+            {appLogo && (
+              <button
+                type="button"
+                className="text-xs text-danger mt-1 hover:underline"
+                onClick={() => setAppLogo('')}
+              >
+                Remove logo
+              </button>
+            )}
           </div>
           <button type="submit" className="btn-primary w-full">Save Settings</button>
         </form>

@@ -32,7 +32,9 @@ export default function SaleDetailPage() {
     setDownloading(true);
     try {
       const token = localStorage.getItem('sm_token');
-      const res = await fetch(`/api/sales/${id}/pdf`, {
+      const settings = JSON.parse(localStorage.getItem('sm_settings') || '{}');
+      const appLogo = settings.appLogo ? `&appLogo=${encodeURIComponent(settings.appLogo)}` : '';
+      const res = await fetch(`/api/sales/${id}/pdf?${appLogo}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
