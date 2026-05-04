@@ -37,6 +37,24 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+router.delete('/:id', async (req, res) => {
+  try {
+    await prisma.$transaction(async (tx) => {
+      const sales = await tx.sale.findMany({ where: { customerId: req.params.id }, select: { id: true } });
+      const saleIds = sales.map((s) => s.id);
+      if (saleIds.length) {
+        await tx.saleItem.deleteMany({ where: { saleId: { in: saleIds } } });
+        await tx.payment.deleteMany({ where: { saleId: { in: saleIds } } });
+        await tx.sale.deleteMany({ where: { id: { in: saleIds } } });
+      }
+      await tx.customer.delete({ where: { id: req.params.id } });
+    });
+    res.json({ message: 'Customer deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/:id/statement', async (req, res) => {
   try {
     const sales = await prisma.sale.findMany({
