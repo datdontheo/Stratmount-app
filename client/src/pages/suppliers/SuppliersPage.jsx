@@ -38,7 +38,7 @@ export default function SuppliersPage() {
   });
 
   const openAdd = () => { setEditSupplier(null); setForm(emptyForm); setDrawerOpen(true); };
-  const openEdit = (s) => { setEditSupplier(s); setForm({ ...s }); setDrawerOpen(true); };
+  const openEdit = (s) => { setEditSupplier(s); setForm({ name: s.name, country: s.country, currency: s.currency, contact: s.contact, email: s.email }); setDrawerOpen(true); };
 
   const filtered = (suppliers || []).filter((s) => {
     if (!search) return true;
