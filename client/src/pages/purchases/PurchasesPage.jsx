@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import { formatCurrency, formatDate } from '../../utils/format';
 import { IconPlus, IconX, IconShoppingCart } from '../../components/ui/Icons';
+import Badge from '../../components/ui/Badge';
 
 const CURRENCIES = ['AED', 'USD', 'GBP', 'EUR'];
 const CATEGORIES = ['All', 'PERFUME', 'GADGET', 'OTHER'];
@@ -36,6 +37,7 @@ function calcItems(rows, effectiveRate, shippingCostGHS) {
 export default function PurchasesPage() {
   const qc = useQueryClient();
   const [showHistory, setShowHistory] = useState(false);
+  const [expandedPurchaseId, setExpandedPurchaseId] = useState(null);
 
   const [supplierId, setSupplierId] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -54,6 +56,8 @@ export default function PurchasesPage() {
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/suppliers') });
   const { data: products } = useQuery({ queryKey: ['products'], queryFn: () => api.get('/products') });
   const { data: history } = useQuery({ queryKey: ['purchases'], queryFn: () => api.get('/purchases'), enabled: showHistory });
+  const { data: velocityData } = useQuery({ queryKey: ['report-velocity'], queryFn: () => api.get('/reports/product-velocity'), enabled: showHistory });
+  const velocityByProduct = useMemo(() => Object.fromEntries((velocityData || []).map((v) => [v.productId, v])), [velocityData]);
   const { data: currentRates } = useQuery({ queryKey: ['exchange-rates-current'], queryFn: () => api.get('/exchange-rates/current') });
 
   // Filtered product list for dropdowns
@@ -372,15 +376,57 @@ export default function PurchasesPage() {
               </thead>
               <tbody>
                 {(history || []).map((p) => (
-                  <tr key={p.id} className="table-row">
-                    <td className="td">{formatDate(p.purchaseDate)}</td>
-                    <td className="td font-medium">{p.supplier?.name}</td>
-                    <td className="td text-text-secondary">{p.invoiceNumber || '—'}</td>
-                    <td className="td">{p.currency}</td>
-                    <td className="td font-medium">{formatCurrency(p.totalGHS)}</td>
-                    <td className="td">{formatCurrency(p.shippingCostGHS || 0)}</td>
-                    <td className="td text-text-secondary">{p.items?.length} product{p.items?.length !== 1 ? 's' : ''}</td>
-                  </tr>
+                  <>
+                    <tr
+                      key={p.id}
+                      className="table-row cursor-pointer"
+                      onClick={() => setExpandedPurchaseId(expandedPurchaseId === p.id ? null : p.id)}
+                    >
+                      <td className="td">{formatDate(p.purchaseDate)}</td>
+                      <td className="td font-medium">{p.supplier?.name}</td>
+                      <td className="td text-text-secondary">{p.invoiceNumber || '—'}</td>
+                      <td className="td">{p.currency}</td>
+                      <td className="td font-medium">{formatCurrency(p.totalGHS)}</td>
+                      <td className="td">{formatCurrency(p.shippingCostGHS || 0)}</td>
+                      <td className="td text-text-secondary">
+                        {p.items?.length} product{p.items?.length !== 1 ? 's' : ''}
+                        <span className="ml-1 text-text-tertiary">{expandedPurchaseId === p.id ? '▲' : '▼'}</span>
+                      </td>
+                    </tr>
+                    {expandedPurchaseId === p.id && (
+                      <tr key={`${p.id}-detail`}>
+                        <td colSpan={7} className="px-4 pb-4 bg-bg-tertiary">
+                          <table className="w-full text-xs mt-2">
+                            <thead>
+                              <tr className="border-b border-border">
+                                <th className="th">Product</th>
+                                <th className="th">Qty in Shipment</th>
+                                <th className="th">Total Sold (all time)</th>
+                                <th className="th">Current Stock</th>
+                                <th className="th">Weekly Velocity</th>
+                                <th className="th">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(p.items || []).map((item) => {
+                                const v = velocityByProduct[item.productId];
+                                return (
+                                  <tr key={item.id} className="border-b border-border">
+                                    <td className="td font-medium">{item.product?.name}</td>
+                                    <td className="td">{item.quantity}</td>
+                                    <td className="td">{v?.totalSold ?? '—'}</td>
+                                    <td className="td">{v?.currentStock ?? '—'}</td>
+                                    <td className="td">{v?.weeklyVelocity > 0 ? `${v.weeklyVelocity}/wk` : '—'}</td>
+                                    <td className="td"><Badge value={v?.classification ?? ''} /></td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 ))}
                 {!history?.length && (
                   <tr><td colSpan={7} className="td text-center text-text-tertiary py-6">No shipments recorded yet</td></tr>

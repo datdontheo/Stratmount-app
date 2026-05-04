@@ -139,6 +139,68 @@ router.get('/expenses', async (req, res) => {
   }
 });
 
+router.get('/product-velocity', async (req, res) => {
+  try {
+    const now = new Date();
+    const [products, purchaseItems, saleItems, inventory] = await Promise.all([
+      prisma.product.findMany(),
+      prisma.purchaseItem.findMany({ include: { purchase: { select: { purchaseDate: true } } } }),
+      prisma.saleItem.findMany({ include: { sale: { select: { saleDate: true } } } }),
+      prisma.inventory.findMany(),
+    ]);
+
+    const receivedMap = {};
+    for (const pi of purchaseItems) {
+      const d = pi.purchase.purchaseDate;
+      if (!receivedMap[pi.productId]) receivedMap[pi.productId] = { totalReceived: 0, firstReceived: d };
+      receivedMap[pi.productId].totalReceived += pi.quantity;
+      if (d < receivedMap[pi.productId].firstReceived) receivedMap[pi.productId].firstReceived = d;
+    }
+
+    const soldMap = {};
+    for (const si of saleItems) {
+      const d = si.sale.saleDate;
+      if (!soldMap[si.productId]) soldMap[si.productId] = { totalSold: 0, lastSold: d };
+      soldMap[si.productId].totalSold += si.quantity;
+      if (d > soldMap[si.productId].lastSold) soldMap[si.productId].lastSold = d;
+    }
+
+    const stockMap = {};
+    for (const inv of inventory) stockMap[inv.productId] = (stockMap[inv.productId] || 0) + inv.quantity;
+
+    const result = products.map((p) => {
+      const received = receivedMap[p.id] || { totalReceived: 0, firstReceived: null };
+      const sold = soldMap[p.id] || { totalSold: 0, lastSold: null };
+      const currentStock = stockMap[p.id] || 0;
+
+      const daysInSystem = received.firstReceived
+        ? (now - new Date(received.firstReceived)) / 86400000 : null;
+      const daysSinceLastSale = sold.lastSold
+        ? (now - new Date(sold.lastSold)) / 86400000 : null;
+
+      const weeklyVelocity = daysInSystem > 0
+        ? Math.round((sold.totalSold / daysInSystem) * 7 * 100) / 100 : 0;
+      const stockWeeksRemaining = weeklyVelocity > 0
+        ? Math.round((currentStock / weeklyVelocity) * 10) / 10 : null;
+
+      let classification = 'STAGNANT';
+      if (daysSinceLastSale !== null && daysSinceLastSale < 30 && weeklyVelocity >= 3) classification = 'FAST';
+      else if (daysSinceLastSale !== null && daysSinceLastSale < 30 && weeklyVelocity >= 0.5) classification = 'SLOW';
+
+      return {
+        productId: p.id, name: p.name, sku: p.sku, category: p.category, brand: p.brand,
+        totalReceived: received.totalReceived, totalSold: sold.totalSold, currentStock,
+        firstReceived: received.firstReceived, lastSold: sold.lastSold,
+        daysInSystem: daysInSystem ? Math.floor(daysInSystem) : null,
+        daysSinceLastSale: daysSinceLastSale !== null ? Math.floor(daysSinceLastSale) : null,
+        weeklyVelocity, stockWeeksRemaining, classification,
+      };
+    });
+
+    res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/export/:type', async (req, res) => {
   try {
     const { type } = req.params;
@@ -189,6 +251,50 @@ router.get('/export/:type', async (req, res) => {
         { Item: 'Total Expenses', Amount: totalExpenses },
         { Item: 'Net Profit', Amount: totalRevenue - totalExpenses },
       ];
+    } else if (type === 'velocity') {
+      const now = new Date();
+      const [products, purchaseItems, saleItems, inventory] = await Promise.all([
+        prisma.product.findMany(),
+        prisma.purchaseItem.findMany({ include: { purchase: { select: { purchaseDate: true } } } }),
+        prisma.saleItem.findMany({ include: { sale: { select: { saleDate: true } } } }),
+        prisma.inventory.findMany(),
+      ]);
+      const receivedMap = {};
+      for (const pi of purchaseItems) {
+        const d = pi.purchase.purchaseDate;
+        if (!receivedMap[pi.productId]) receivedMap[pi.productId] = { totalReceived: 0, firstReceived: d };
+        receivedMap[pi.productId].totalReceived += pi.quantity;
+        if (d < receivedMap[pi.productId].firstReceived) receivedMap[pi.productId].firstReceived = d;
+      }
+      const soldMap = {};
+      for (const si of saleItems) {
+        const d = si.sale.saleDate;
+        if (!soldMap[si.productId]) soldMap[si.productId] = { totalSold: 0, lastSold: d };
+        soldMap[si.productId].totalSold += si.quantity;
+        if (d > soldMap[si.productId].lastSold) soldMap[si.productId].lastSold = d;
+      }
+      const stockMap = {};
+      for (const inv of inventory) stockMap[inv.productId] = (stockMap[inv.productId] || 0) + inv.quantity;
+      data = products.map((p) => {
+        const received = receivedMap[p.id] || { totalReceived: 0, firstReceived: null };
+        const sold = soldMap[p.id] || { totalSold: 0, lastSold: null };
+        const currentStock = stockMap[p.id] || 0;
+        const daysInSystem = received.firstReceived ? (now - new Date(received.firstReceived)) / 86400000 : null;
+        const daysSinceLastSale = sold.lastSold ? (now - new Date(sold.lastSold)) / 86400000 : null;
+        const weeklyVelocity = daysInSystem > 0 ? Math.round((sold.totalSold / daysInSystem) * 7 * 100) / 100 : 0;
+        let classification = 'STAGNANT';
+        if (daysSinceLastSale !== null && daysSinceLastSale < 30 && weeklyVelocity >= 3) classification = 'FAST';
+        else if (daysSinceLastSale !== null && daysSinceLastSale < 30 && weeklyVelocity >= 0.5) classification = 'SLOW';
+        return {
+          Product: p.name, SKU: p.sku, Category: p.category,
+          'First Received': received.firstReceived ? new Date(received.firstReceived).toISOString().split('T')[0] : '—',
+          'Total Received': received.totalReceived, 'Total Sold': sold.totalSold,
+          'Current Stock': currentStock, 'Weekly Velocity': weeklyVelocity,
+          'Days Since Last Sale': daysSinceLastSale !== null ? Math.floor(daysSinceLastSale) : 'Never',
+          Status: classification,
+        };
+      });
+      sheetName = 'Product Velocity';
     }
 
     const ws = XLSX.utils.json_to_sheet(data);

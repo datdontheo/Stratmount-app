@@ -4,7 +4,7 @@ import api from '../../api/client';
 import { formatCurrency, formatDate } from '../../utils/format';
 import Badge from '../../components/ui/Badge';
 
-const tabs = ['Sales', 'Inventory', 'Profit & Loss', 'Expenses'];
+const tabs = ['Sales', 'Inventory', 'Profit & Loss', 'Expenses', 'Product Velocity'];
 
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState('Sales');
@@ -40,10 +40,41 @@ export default function ReportsPage() {
     enabled: activeTab === 'Expenses',
   });
 
-  const exportType = { 'Sales': 'sales', 'Inventory': 'inventory', 'Profit & Loss': 'pl', 'Expenses': 'expenses' };
+  const { data: velocityReport } = useQuery({
+    queryKey: ['report-velocity'],
+    queryFn: () => api.get('/reports/product-velocity'),
+    enabled: activeTab === 'Product Velocity',
+  });
+
+  const [velocitySearch, setVelocitySearch] = useState('');
+  const [velocityFilter, setVelocityFilter] = useState('ALL');
+  const [velocitySort, setVelocitySort] = useState('weeklyVelocity');
+  const [velocitySortDir, setVelocitySortDir] = useState('desc');
+
+  const filteredVelocity = (velocityReport || [])
+    .filter((r) =>
+      (velocityFilter === 'ALL' || r.classification === velocityFilter) &&
+      (!velocitySearch ||
+        r.name.toLowerCase().includes(velocitySearch.toLowerCase()) ||
+        r.sku.toLowerCase().includes(velocitySearch.toLowerCase()))
+    )
+    .sort((a, b) => {
+      const va = a[velocitySort] ?? -Infinity;
+      const vb = b[velocitySort] ?? -Infinity;
+      return velocitySortDir === 'asc' ? va - vb : vb - va;
+    });
+
+  const handleVelocitySort = (field) => {
+    if (velocitySort === field) setVelocitySortDir((d) => d === 'asc' ? 'desc' : 'asc');
+    else { setVelocitySort(field); setVelocitySortDir('desc'); }
+  };
+
+  const sortIndicator = (field) => velocitySort === field ? (velocitySortDir === 'asc' ? ' ▲' : ' ▼') : '';
+
+  const exportType = { 'Sales': 'sales', 'Inventory': 'inventory', 'Profit & Loss': 'pl', 'Expenses': 'expenses', 'Product Velocity': 'velocity' };
   const handleExport = () => {
     const type = exportType[activeTab];
-    window.open(`/api/reports/export/${type}${qs}`, '_blank');
+    if (type) window.open(`/api/reports/export/${type}${qs}`, '_blank');
   };
 
   return (
@@ -201,7 +232,6 @@ export default function ReportsPage() {
       {/* Expenses report */}
       {activeTab === 'Expenses' && expensesReport && (
         <div className="space-y-4">
-          {/* By category */}
           <div className="card">
             <h3 className="font-heading font-semibold text-text-primary mb-4">By Category</h3>
             <div className="space-y-2">
@@ -216,6 +246,114 @@ export default function ReportsPage() {
               <span>Total</span>
               <span className="text-danger">{formatCurrency(Object.values(expensesReport.byCategory || {}).reduce((s, a) => s + a, 0))}</span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Product Velocity report */}
+      {activeTab === 'Product Velocity' && (
+        <div className="space-y-4">
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: 'Products Tracked', value: (velocityReport || []).filter((r) => r.totalReceived > 0).length, color: 'text-text-primary' },
+              { label: 'Fast Movers', value: (velocityReport || []).filter((r) => r.classification === 'FAST').length, color: 'text-success' },
+              { label: 'Slow Movers', value: (velocityReport || []).filter((r) => r.classification === 'SLOW').length, color: 'text-warning' },
+              { label: 'Stagnant / Unsold', value: (velocityReport || []).filter((r) => r.classification === 'STAGNANT').length, color: 'text-danger' },
+            ].map((card) => (
+              <div key={card.label} className="card">
+                <p className="text-text-secondary text-sm">{card.label}</p>
+                <p className={`font-heading font-bold text-2xl mt-1 ${card.color}`}>{card.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Search + filter */}
+          <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-end">
+            <input
+              className="input sm:max-w-xs"
+              placeholder="Search by name or SKU..."
+              value={velocitySearch}
+              onChange={(e) => setVelocitySearch(e.target.value)}
+            />
+            <div className="flex gap-2 flex-wrap">
+              {['ALL', 'FAST', 'SLOW', 'STAGNANT'].map((cls) => (
+                <button
+                  key={cls}
+                  onClick={() => setVelocityFilter(cls)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    velocityFilter === cls ? 'font-semibold' : 'bg-bg-tertiary text-text-secondary hover:text-text-primary'
+                  }`}
+                  style={velocityFilter === cls ? { backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' } : {}}
+                >
+                  {cls}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Desktop table */}
+          <div className="card hidden lg:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="th">Product</th>
+                  <th className="th">Category</th>
+                  <th className="th cursor-pointer hover:text-text-primary" onClick={() => handleVelocitySort('totalReceived')}>Received{sortIndicator('totalReceived')}</th>
+                  <th className="th cursor-pointer hover:text-text-primary" onClick={() => handleVelocitySort('totalSold')}>Sold{sortIndicator('totalSold')}</th>
+                  <th className="th cursor-pointer hover:text-text-primary" onClick={() => handleVelocitySort('currentStock')}>Stock{sortIndicator('currentStock')}</th>
+                  <th className="th cursor-pointer hover:text-text-primary" onClick={() => handleVelocitySort('weeklyVelocity')}>Weekly Vel.{sortIndicator('weeklyVelocity')}</th>
+                  <th className="th cursor-pointer hover:text-text-primary" onClick={() => handleVelocitySort('daysSinceLastSale')}>Days Since Sale{sortIndicator('daysSinceLastSale')}</th>
+                  <th className="th cursor-pointer hover:text-text-primary" onClick={() => handleVelocitySort('stockWeeksRemaining')}>Weeks Left{sortIndicator('stockWeeksRemaining')}</th>
+                  <th className="th">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredVelocity.map((r) => (
+                  <tr key={r.productId} className="table-row">
+                    <td className="td">
+                      <p className="font-medium text-text-primary">{r.name}</p>
+                      <p className="text-text-tertiary text-xs">{r.sku}</p>
+                    </td>
+                    <td className="td"><Badge value={r.category} /></td>
+                    <td className="td text-text-secondary">{r.totalReceived}</td>
+                    <td className="td text-text-secondary">{r.totalSold}</td>
+                    <td className="td font-medium">{r.currentStock}</td>
+                    <td className="td font-medium">{r.weeklyVelocity > 0 ? `${r.weeklyVelocity}/wk` : '—'}</td>
+                    <td className="td text-text-secondary">{r.daysSinceLastSale !== null ? `${r.daysSinceLastSale}d ago` : 'Never sold'}</td>
+                    <td className="td text-text-secondary">{r.stockWeeksRemaining !== null ? `${r.stockWeeksRemaining} wks` : '—'}</td>
+                    <td className="td"><Badge value={r.classification} /></td>
+                  </tr>
+                ))}
+                {!filteredVelocity.length && (
+                  <tr><td colSpan={9} className="td text-center text-text-tertiary py-8">No products found</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="lg:hidden space-y-3">
+            {filteredVelocity.map((r) => (
+              <div key={r.productId} className="card">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-medium text-text-primary">{r.name}</p>
+                    <p className="text-text-tertiary text-xs mt-0.5">{r.sku}</p>
+                  </div>
+                  <Badge value={r.classification} />
+                </div>
+                <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-border text-sm">
+                  <div><p className="text-xs text-text-tertiary">Stock</p><p className="font-medium">{r.currentStock}</p></div>
+                  <div><p className="text-xs text-text-tertiary">Sold</p><p>{r.totalSold}</p></div>
+                  <div><p className="text-xs text-text-tertiary">Velocity</p><p>{r.weeklyVelocity > 0 ? `${r.weeklyVelocity}/wk` : '—'}</p></div>
+                </div>
+                <p className="text-text-tertiary text-xs mt-2">
+                  {r.daysSinceLastSale !== null ? `Last sold ${r.daysSinceLastSale}d ago` : 'Never sold'}
+                  {r.stockWeeksRemaining !== null ? ` · ${r.stockWeeksRemaining} wks stock left` : ''}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       )}
