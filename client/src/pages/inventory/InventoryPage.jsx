@@ -310,7 +310,6 @@ function OutletItemDetailModal({ item, onClose }) {
 export default function InventoryPage() {
   const { user } = useAuthStore();
   const [assignOpen, setAssignOpen] = useState(false);
-  const [receiveOpen, setReceiveOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [writeOffOpen, setWriteOffOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -366,7 +365,6 @@ export default function InventoryPage() {
         </div>
         {!isSubAccount && (
           <div className="flex gap-2 flex-wrap justify-end">
-            <button className="btn-secondary text-sm" onClick={() => setReceiveOpen(true)}>+ Receive</button>
             <button className="btn-primary text-sm" onClick={() => setAssignOpen(true)}>+ Assign</button>
             <button className="btn-secondary text-sm" onClick={() => setReturnOpen(true)}>Return</button>
             <button className="btn-secondary text-sm text-danger hover:bg-danger/10" onClick={() => setWriteOffOpen(true)}>Write Off</button>
@@ -508,7 +506,6 @@ export default function InventoryPage() {
         }
       </div>
 
-      <ReceiveModal isOpen={receiveOpen} onClose={() => setReceiveOpen(false)} products={products} />
       <AssignModal isOpen={assignOpen} onClose={() => setAssignOpen(false)} products={products} users={holders?.users} />
       <ReturnModal isOpen={returnOpen} onClose={() => setReturnOpen(false)} products={products} users={holders?.users} />
       <WriteOffModal isOpen={writeOffOpen} onClose={() => setWriteOffOpen(false)} inventory={inventory} />

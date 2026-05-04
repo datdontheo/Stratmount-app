@@ -302,6 +302,28 @@ export default function SettingsPage() {
         >
           Clear Local Data & Logout
         </button>
+        {isAdmin && (
+          <div className="mt-4 pt-4 border-t border-danger/20">
+            <p className="text-text-secondary text-sm mb-3">Permanently delete all sales records and payment history. Inventory is not affected.</p>
+            <button
+              className="btn-danger text-sm"
+              onClick={async () => {
+                if (window.confirm('DELETE ALL SALES AND PAYMENTS? This cannot be undone.') &&
+                    window.confirm('Are you absolutely sure? All sales data will be lost permanently.')) {
+                  try {
+                    await api.delete('/sales/all');
+                    toast.success('All sales and payments deleted');
+                    qc.invalidateQueries();
+                  } catch (err) {
+                    toast.error(err.error || 'Failed to delete data');
+                  }
+                }
+              }}
+            >
+              Reset Sales Data
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

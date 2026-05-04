@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
@@ -6,17 +6,12 @@ import { formatCurrency, formatDate } from '../../utils/format';
 import { IconPlus, IconX, IconShoppingCart } from '../../components/ui/Icons';
 import Badge from '../../components/ui/Badge';
 
-const CURRENCIES = ['AED', 'USD', 'GBP', 'EUR'];
+const CURRENCIES = ['GHS', 'AED', 'USD', 'GBP', 'EUR'];
 const CATEGORIES = ['All', 'PERFUME', 'GADGET', 'OTHER'];
 const DEFAULT_MARGIN = 20;
 
 function emptyItem() {
-  return { productId: '', quantity: 1, unitCost: 0, profitMargin: DEFAULT_MARGIN };
-}
-
-function calcEffectiveRate(currency, exchangeRate, intermediaryRate) {
-  if (currency === 'AED') return (intermediaryRate || 0) * (exchangeRate || 0);
-  return exchangeRate || 0;
+  return { productId: '', quantity: 1, unitCost: 0, totalCost: 0, profitMargin: DEFAULT_MARGIN };
 }
 
 function calcItems(rows, effectiveRate, shippingCostGHS) {
@@ -25,12 +20,13 @@ function calcItems(rows, effectiveRate, shippingCostGHS) {
     const qty = Number(r.quantity) || 0;
     const unitCostForeign = Number(r.unitCost) || 0;
     const unitCostGHS = unitCostForeign * effectiveRate;
+    const lineTotalGHS = unitCostGHS * qty;
     const defaultShipping = totalQty > 0 ? (shippingCostGHS * qty) / totalQty : 0;
     const shippingAllocated = r._shippingOverride !== undefined ? r._shippingOverride : defaultShipping;
     const trueCostPerUnit = qty > 0 ? unitCostGHS + shippingAllocated / qty : unitCostGHS;
     const margin = Number(r.profitMargin) ?? DEFAULT_MARGIN;
     const outletPrice = trueCostPerUnit * (1 + margin / 100);
-    return { ...r, unitCostGHS, shippingAllocated, trueCostPerUnit, outletPrice };
+    return { ...r, unitCostGHS, lineTotalGHS, shippingAllocated, trueCostPerUnit, outletPrice };
   });
 }
 
@@ -42,14 +38,12 @@ export default function PurchasesPage() {
   const [supplierId, setSupplierId] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().slice(0, 10));
-  const [currency, setCurrency] = useState('AED');
-  const [intermediaryRate, setIntermediaryRate] = useState('');
+  const [currency, setCurrency] = useState('GHS');
   const [exchangeRate, setExchangeRate] = useState('');
-  const [shippingCostForeign, setShippingCostForeign] = useState(0);
+  const [shippingCostGHS, setShippingCostGHS] = useState(0);
   const [notes, setNotes] = useState('');
   const [rows, setRows] = useState([emptyItem()]);
 
-  // Product search / category filter for the products table
   const [productSearch, setProductSearch] = useState('');
   const [productCategory, setProductCategory] = useState('All');
 
@@ -60,7 +54,6 @@ export default function PurchasesPage() {
   const velocityByProduct = useMemo(() => Object.fromEntries((velocityData || []).map((v) => [v.productId, v])), [velocityData]);
   const { data: currentRates } = useQuery({ queryKey: ['exchange-rates-current'], queryFn: () => api.get('/exchange-rates/current') });
 
-  // Filtered product list for dropdowns
   const filteredProducts = (products || []).filter((p) => {
     const matchesSearch = !productSearch ||
       p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
@@ -70,35 +63,32 @@ export default function PurchasesPage() {
     return matchesSearch && matchesCategory;
   });
 
-  // Auto-fill exchange rate when currency changes — only if field is currently empty
-  useEffect(() => {
-    if (!currentRates) return;
-    if (currency === 'AED') {
-      const usdToGHS = currentRates['USD'] || '';
-      if (usdToGHS && !exchangeRate) setExchangeRate(String(usdToGHS));
-      if (!intermediaryRate) {
-        if (currentRates.aedToUSD) {
-          setIntermediaryRate(String(currentRates.aedToUSD));
-        } else {
-          const aedToGHS = currentRates['AED'] || '';
-          if (aedToGHS && usdToGHS && Number(usdToGHS) > 0) {
-            setIntermediaryRate(String((Number(aedToGHS) / Number(usdToGHS)).toFixed(4)));
-          }
-        }
-      }
-    } else {
-      const rate = currentRates[currency];
-      if (rate && !exchangeRate) setExchangeRate(String(rate));
-    }
-  }, [currency, currentRates]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const effectiveRate = calcEffectiveRate(currency, Number(exchangeRate), Number(intermediaryRate));
-  const shippingCostGHS = Number(shippingCostForeign) * effectiveRate;
-  const computed = calcItems(rows, effectiveRate, shippingCostGHS);
+  // For GHS purchases, rate is 1. For others, user inputs rate.
+  const effectiveRate = currency === 'GHS' ? 1 : (Number(exchangeRate) || 0);
+  const computed = calcItems(rows, effectiveRate, Number(shippingCostGHS));
 
   const totalForeign = rows.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.unitCost) || 0), 0);
-  const totalGHS = computed.reduce((s, r) => s + (Number(r.quantity) || 0) * r.unitCostGHS, 0);
-  const grandTotal = totalGHS + shippingCostGHS;
+  const totalGHS = computed.reduce((s, r) => s + r.lineTotalGHS, 0);
+  const grandTotal = totalGHS + Number(shippingCostGHS);
+
+  const updateRow = (i, field, value) => {
+    setRows((prev) => prev.map((r, idx) => {
+      if (idx !== i) return r;
+      const updated = { ...r, [field]: value };
+      const qty = Number(field === 'quantity' ? value : updated.quantity) || 1;
+      // Keep unitCost and totalCost in sync
+      if (field === 'unitCost') {
+        updated.totalCost = (Number(value) || 0) * qty;
+      } else if (field === 'totalCost') {
+        updated.unitCost = qty > 0 ? (Number(value) || 0) / qty : 0;
+      } else if (field === 'quantity') {
+        updated.totalCost = (Number(updated.unitCost) || 0) * qty;
+      }
+      return updated;
+    }));
+  };
+
+  const fmt = (n) => (Number(n) || 0).toFixed(2);
 
   const save = useMutation({
     mutationFn: (data) => api.post('/purchases', data),
@@ -107,8 +97,8 @@ export default function PurchasesPage() {
       qc.invalidateQueries(['purchases']);
       qc.invalidateQueries(['inventory']);
       qc.invalidateQueries(['products']);
-      setSupplierId(''); setInvoiceNumber(''); setCurrency('AED');
-      setIntermediaryRate(''); setExchangeRate(''); setShippingCostForeign(0); setNotes('');
+      setSupplierId(''); setInvoiceNumber(''); setCurrency('GHS');
+      setExchangeRate(''); setShippingCostGHS(0); setNotes('');
       setRows([emptyItem()]);
       setPurchaseDate(new Date().toISOString().slice(0, 10));
       setProductSearch(''); setProductCategory('All');
@@ -118,18 +108,17 @@ export default function PurchasesPage() {
 
   const handleSave = () => {
     if (!supplierId) return toast.error('Select a supplier');
-    if (!exchangeRate) return toast.error('Enter exchange rate');
-    if (currency === 'AED' && !intermediaryRate) return toast.error('Enter AED → USD rate');
+    if (currency !== 'GHS' && !exchangeRate) return toast.error('Enter exchange rate');
     if (rows.some((r) => !r.productId)) return toast.error('Select a product for each row');
-    if (effectiveRate <= 0) return toast.error('Exchange rate must be greater than 0');
+    if (currency !== 'GHS' && effectiveRate <= 0) return toast.error('Exchange rate must be greater than 0');
 
     save.mutate({
       supplierId, invoiceNumber, purchaseDate, currency,
-      exchangeRate: Number(exchangeRate),
-      intermediaryCurrency: currency === 'AED' ? 'USD' : null,
-      intermediaryRate: currency === 'AED' ? Number(intermediaryRate) : null,
-      shippingCostForeign: Number(shippingCostForeign),
-      shippingCostGHS,
+      exchangeRate: currency === 'GHS' ? 1 : Number(exchangeRate),
+      intermediaryCurrency: null,
+      intermediaryRate: null,
+      shippingCostForeign: 0,
+      shippingCostGHS: Number(shippingCostGHS),
       totalForeign, totalGHS,
       fxGainLoss: 0, notes,
       items: computed.map((r) => ({
@@ -144,11 +133,6 @@ export default function PurchasesPage() {
       })),
     });
   };
-
-  const updateRow = (i, field, value) =>
-    setRows((prev) => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r));
-
-  const fmt = (n) => (Number(n) || 0).toFixed(2);
 
   return (
     <div className="space-y-6">
@@ -178,38 +162,40 @@ export default function PurchasesPage() {
           </div>
           <div>
             <label className="label">Purchase Currency</label>
-            <select className="input" value={currency} onChange={(e) => { setCurrency(e.target.value); setExchangeRate(''); setIntermediaryRate(''); }}>
+            <select className="input" value={currency} onChange={(e) => { setCurrency(e.target.value); setExchangeRate(''); }}>
               {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          {currency === 'AED' && (
+          {currency !== 'GHS' && (
             <div>
-              <label className="label">AED → USD Rate</label>
-              <input type="number" step="0.0001" className="input" value={intermediaryRate} onChange={(e) => setIntermediaryRate(e.target.value)} placeholder="e.g. 0.2722" />
-              {currentRates?.aedToUSD && <p className="text-text-tertiary text-xs mt-1">Saved rate: {currentRates.aedToUSD} (auto-filled)</p>}
+              <label className="label">{currency} → GHS Rate</label>
+              <input
+                type="number" step="0.01" className="input"
+                value={exchangeRate}
+                onChange={(e) => setExchangeRate(e.target.value)}
+                placeholder="e.g. 14.5"
+              />
+              {currentRates?.[currency] && (
+                <p className="text-text-tertiary text-xs mt-1">
+                  Saved rate: {currentRates[currency]}
+                  {!exchangeRate && (
+                    <button className="ml-2 underline" onClick={() => setExchangeRate(String(currentRates[currency]))}>
+                      Use
+                    </button>
+                  )}
+                </p>
+              )}
             </div>
           )}
           <div>
-            <label className="label">{currency === 'AED' ? 'USD → GHS Rate' : `${currency} → GHS Rate`}</label>
-            <input type="number" step="0.01" className="input" value={exchangeRate} onChange={(e) => setExchangeRate(e.target.value)} placeholder="e.g. 14.5" />
-            {currentRates && <p className="text-text-tertiary text-xs mt-1">Saved rate: {currency === 'AED' ? currentRates['USD'] : currentRates[currency]} (auto-filled)</p>}
+            <label className="label">Shipping Cost (GHS)</label>
+            <input
+              type="number" step="0.01" min={0} className="input"
+              value={shippingCostGHS}
+              onChange={(e) => setShippingCostGHS(Math.max(0, +e.target.value))}
+              placeholder="0.00"
+            />
           </div>
-          {effectiveRate > 0 && currency === 'AED' && (
-            <div>
-              <label className="label">Effective AED → GHS Rate</label>
-              <div className="input bg-bg-tertiary text-text-secondary cursor-default">{fmt(effectiveRate)}</div>
-            </div>
-          )}
-          <div>
-            <label className="label">Shipping Cost (USD)</label>
-            <input type="number" step="0.01" min={0} className="input" value={shippingCostForeign} onChange={(e) => setShippingCostForeign(Math.max(0, +e.target.value))} placeholder="0.00" />
-          </div>
-          {Number(shippingCostForeign) > 0 && (
-            <div>
-              <label className="label">Shipping Cost (GHS)</label>
-              <div className="input bg-bg-tertiary text-text-secondary cursor-default">{formatCurrency(shippingCostGHS)}</div>
-            </div>
-          )}
           <div className="sm:col-span-2 lg:col-span-3">
             <label className="label">Notes (optional)</label>
             <input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any notes about this shipment" />
@@ -221,7 +207,6 @@ export default function PurchasesPage() {
       <div className="card space-y-4">
         <h2 className="font-heading font-semibold text-text-primary">Products</h2>
 
-        {/* Product search + category filter */}
         <div className="flex flex-col sm:flex-row gap-3">
           <input
             className="input sm:max-w-xs"
@@ -243,25 +228,21 @@ export default function PurchasesPage() {
               </button>
             ))}
           </div>
-          {(productSearch || productCategory !== 'All') && (
-            <span className="text-text-tertiary text-xs self-center">
-              {filteredProducts.length} of {(products || []).length} products
-            </span>
-          )}
         </div>
 
         <div className="overflow-x-auto -mx-4 px-4">
-          <table className="w-full text-sm min-w-[900px]">
+          <table className="w-full text-sm min-w-[1000px]">
             <thead>
               <tr className="border-b border-border">
                 <th className="th">Product</th>
                 <th className="th">Qty</th>
                 <th className="th">Unit Cost ({currency})</th>
-                <th className="th">Unit Cost (GHS)</th>
+                <th className="th">Total Cost ({currency})</th>
+                {currency !== 'GHS' && <th className="th">Unit Cost (GHS)</th>}
                 <th className="th">Shipping Alloc. (GHS)</th>
                 <th className="th">True Cost/Unit</th>
                 <th className="th">Margin %</th>
-                <th className="th">Outlet Price (GHS)</th>
+                <th className="th">Outlet Price</th>
                 <th className="th"></th>
               </tr>
             </thead>
@@ -282,7 +263,6 @@ export default function PurchasesPage() {
                             {p.name}{p.brand ? ` (${p.brand})` : ''} [{p.category}]
                           </option>
                         ))}
-                        {/* If the row has a product not in the filter, always show it */}
                         {row.productId && !filteredProducts.find((p) => p.id === row.productId) && (() => {
                           const sel = (products || []).find((p) => p.id === row.productId);
                           return sel ? <option key={sel.id} value={sel.id}>{sel.name} ⚠ (outside filter)</option> : null;
@@ -295,7 +275,10 @@ export default function PurchasesPage() {
                     <td className="td">
                       <input type="number" step="0.01" className="input text-xs py-1.5 w-28" value={row.unitCost} onChange={(e) => updateRow(i, 'unitCost', e.target.value)} />
                     </td>
-                    <td className="td text-text-secondary">{fmt(c.unitCostGHS)}</td>
+                    <td className="td">
+                      <input type="number" step="0.01" className="input text-xs py-1.5 w-28" value={fmt(row.totalCost)} onChange={(e) => updateRow(i, 'totalCost', e.target.value)} />
+                    </td>
+                    {currency !== 'GHS' && <td className="td text-text-secondary">{fmt(c.unitCostGHS)}</td>}
                     <td className="td">
                       <input
                         type="number" step="0.01"
@@ -331,17 +314,19 @@ export default function PurchasesPage() {
       <div className="card">
         <h2 className="font-heading font-semibold text-text-primary mb-4">Summary</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-          <div>
-            <p className="text-text-tertiary text-xs mb-1">Total Cost ({currency})</p>
-            <p className="text-text-primary font-semibold">{fmt(totalForeign)}</p>
-          </div>
+          {currency !== 'GHS' && (
+            <div>
+              <p className="text-text-tertiary text-xs mb-1">Total Cost ({currency})</p>
+              <p className="text-text-primary font-semibold">{fmt(totalForeign)}</p>
+            </div>
+          )}
           <div>
             <p className="text-text-tertiary text-xs mb-1">Total Cost (GHS)</p>
             <p className="text-text-primary font-semibold">{formatCurrency(totalGHS)}</p>
           </div>
           <div>
             <p className="text-text-tertiary text-xs mb-1">Shipping (GHS)</p>
-            <p className="text-text-primary font-semibold">{formatCurrency(shippingCostGHS)}</p>
+            <p className="text-text-primary font-semibold">{formatCurrency(Number(shippingCostGHS))}</p>
           </div>
           <div>
             <p className="text-text-tertiary text-xs mb-1">Grand Total (GHS)</p>

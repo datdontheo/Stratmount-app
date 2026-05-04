@@ -32,10 +32,10 @@ export default function DashboardPage() {
           Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
         ) : (
           <>
-            <StatCard label="Total Revenue" value={formatCurrency(data?.totalRevenue)} color="success" />
-            <StatCard label="Stock Value" value={formatCurrency(data?.stockValue)} color="white" />
-            <StatCard label="Outstanding" value={formatCurrency(data?.outstandingBalance)} color="warning" />
+            <StatCard label="Profit & Loss" value={formatCurrency(data?.netProfit)} color={data?.netProfit >= 0 ? 'success' : 'danger'} />
             <StatCard label="Total Expenses" value={formatCurrency(data?.totalExpenses)} color="danger" />
+            <StatCard label="Cashflow" value={formatCurrency(data?.cashflow)} color={data?.cashflow >= 0 ? 'success' : 'warning'} />
+            <StatCard label="Cash at Hand" value={formatCurrency(data?.cashAtHand)} color="white" />
           </>
         )}
       </div>

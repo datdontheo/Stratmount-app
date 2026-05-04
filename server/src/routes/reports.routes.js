@@ -12,17 +12,24 @@ router.use(authenticate, requireAdmin);
 router.get('/summary', async (req, res) => {
   try {
     const [sales, expenses, drawings, inventory, products] = await Promise.all([
-      prisma.sale.findMany({ include: { items: true } }),
+      prisma.sale.findMany({ include: { items: { include: { product: true } } } }),
       prisma.expense.findMany(),
       prisma.drawing.findMany(),
       prisma.inventory.findMany({ include: { product: true } }),
       prisma.product.findMany(),
     ]);
 
+    const cashAtHand = sales.filter((s) => s.status === 'PAID').reduce((s, sale) => s + sale.amountPaid, 0);
     const totalRevenue = sales.reduce((s, sale) => s + sale.amountPaid, 0);
     const outstandingBalance = sales.reduce((s, sale) => s + sale.balance, 0);
     const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
     const totalDrawings = drawings.reduce((s, d) => s + d.amount, 0);
+    const totalPurchases = await prisma.purchase.aggregate({ _sum: { totalGHS: true } });
+    const cogs = sales.reduce((s, sale) =>
+      s + sale.items.reduce((is, item) => is + item.quantity * (item.product?.costPrice || 0), 0), 0);
+    const grossProfit = totalRevenue - cogs;
+    const netProfit = grossProfit - totalExpenses - totalDrawings;
+    const cashflow = totalRevenue - totalExpenses - totalDrawings - (totalPurchases._sum.totalGHS || 0);
 
     const stockValue = inventory.reduce((s, inv) => s + inv.quantity * inv.product.costPrice, 0);
 
@@ -34,7 +41,7 @@ router.get('/summary', async (req, res) => {
 
     const lowStock = inventory.filter((inv) => inv.quantity <= 5 && inv.location === 'WAREHOUSE');
 
-    res.json({ totalRevenue, outstandingBalance, totalExpenses, totalDrawings, stockValue, recentSales, lowStock });
+    res.json({ totalRevenue, outstandingBalance, totalExpenses, totalDrawings, stockValue, recentSales, lowStock, cashAtHand, netProfit, cashflow });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

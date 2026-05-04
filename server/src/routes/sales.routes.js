@@ -2,11 +2,25 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const { authenticate } = require('../middleware/auth.middleware');
+const { requireAdmin } = require('../middleware/role.middleware');
 const PDFDocument = require('pdfkit');
 
 const prisma = new PrismaClient();
 
 router.use(authenticate);
+
+router.delete('/all', requireAdmin, async (req, res) => {
+  try {
+    await prisma.$transaction([
+      prisma.payment.deleteMany({}),
+      prisma.saleItem.deleteMany({}),
+      prisma.sale.deleteMany({}),
+    ]);
+    res.json({ message: 'All sales and payments deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 router.get('/', async (req, res) => {
   try {
@@ -130,6 +144,64 @@ router.put('/:id', async (req, res) => {
       include: { customer: true, items: { include: { product: true } }, payments: true },
     });
     res.json(sale);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/return', async (req, res) => {
+  try {
+    const sale = await prisma.sale.findUnique({
+      where: { id: req.params.id },
+      include: { items: { include: { product: true } }, payments: true, soldBy: { select: { id: true, role: true } } },
+    });
+    if (!sale) return res.status(404).json({ error: 'Sale not found' });
+    if (sale.status === 'RETURNED') return res.status(400).json({ error: 'Sale already returned' });
+
+    const { returnedItems, notes } = req.body;
+
+    await prisma.$transaction(async (tx) => {
+      const itemsToReturn = returnedItems || sale.items.map((i) => ({ saleItemId: i.id, quantity: i.quantity }));
+
+      for (const ri of itemsToReturn) {
+        const saleItem = sale.items.find((i) => i.id === ri.saleItemId);
+        if (!saleItem) continue;
+        const qty = Math.min(ri.quantity, saleItem.quantity);
+        const location = sale.soldBy?.role === 'OUTLET' ? `OUTLET_${sale.soldBy.id}` : 'WAREHOUSE';
+        const inv = await tx.inventory.findFirst({ where: { productId: saleItem.productId, location } });
+        if (inv) {
+          await tx.inventory.update({ where: { id: inv.id }, data: { quantity: { increment: qty } } });
+        } else {
+          await tx.inventory.create({ data: { productId: saleItem.productId, quantity: qty, location } });
+        }
+      }
+
+      const refundAmount = (returnedItems
+        ? returnedItems.reduce((s, ri) => {
+            const si = sale.items.find((i) => i.id === ri.saleItemId);
+            return s + (si ? si.unitPrice * Math.min(ri.quantity, si.quantity) : 0);
+          }, 0)
+        : sale.totalAmount);
+
+      const newAmountPaid = Math.max(0, sale.amountPaid - refundAmount);
+      const newBalance = sale.totalAmount - newAmountPaid;
+
+      await tx.sale.update({
+        where: { id: req.params.id },
+        data: {
+          status: 'RETURNED',
+          amountPaid: newAmountPaid,
+          balance: newBalance,
+          notes: notes ? `${sale.notes ? sale.notes + ' | ' : ''}RETURNED: ${notes}` : sale.notes,
+        },
+      });
+    });
+
+    const updated = await prisma.sale.findUnique({
+      where: { id: req.params.id },
+      include: { customer: true, items: { include: { product: true } }, payments: true },
+    });
+    res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

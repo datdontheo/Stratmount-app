@@ -207,9 +207,22 @@ function NewSaleModal({ isOpen, onClose, products, customers, defaultMargin }) {
 
 export default function SalesPage() {
   const { user } = useAuthStore();
+  const qc = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
+  const [returnConfirm, setReturnConfirm] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
+
+  const returnSale = useMutation({
+    mutationFn: (id) => api.post(`/sales/${id}/return`, { notes: 'Customer return' }),
+    onSuccess: () => {
+      toast.success('Return processed — stock restored');
+      qc.invalidateQueries({ queryKey: ['sales'] });
+      qc.invalidateQueries({ queryKey: ['inventory'] });
+      setReturnConfirm(null);
+    },
+    onError: (err) => toast.error(err.error || 'Failed to process return'),
+  });
 
   const { data: sales, isLoading } = useQuery({
     queryKey: ['sales', statusFilter],
@@ -247,7 +260,7 @@ export default function SalesPage() {
 
       <div className="flex flex-wrap gap-3 items-center">
         <div className="flex gap-2">
-          {['', 'PENDING', 'PARTIAL', 'PAID'].map((s) => (
+          {['', 'PENDING', 'PARTIAL', 'PAID', 'RETURNED'].map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)}
               className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${statusFilter === s ? 'font-semibold' : 'bg-bg-tertiary text-text-secondary hover:text-text-primary'}`}
               style={statusFilter === s ? { backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' } : {}}>
@@ -289,7 +302,12 @@ export default function SalesPage() {
                 <td className="td text-danger">{formatCurrency(sale.balance)}</td>
                 <td className="td"><Badge value={sale.status} /></td>
                 <td className="td">
-                  <Link to={`/sales/${sale.id}`} className="text-text-secondary hover:text-text-primary text-xs flex items-center gap-1">View <IconChevronRight size={12} /></Link>
+                  <div className="flex gap-2 items-center">
+                    <Link to={`/sales/${sale.id}`} className="text-text-secondary hover:text-text-primary text-xs flex items-center gap-1">View <IconChevronRight size={12} /></Link>
+                    {sale.status !== 'RETURNED' && (
+                      <button onClick={() => setReturnConfirm(sale)} className="text-text-secondary hover:text-warning text-xs">Return</button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -336,6 +354,29 @@ export default function SalesPage() {
         customers={customers}
         defaultMargin={userProfile?.defaultMargin ?? null}
       />
+
+      <Modal isOpen={!!returnConfirm} onClose={() => setReturnConfirm(null)} title="Process Return" size="sm">
+        <div className="space-y-4">
+          <p className="text-text-secondary text-sm">
+            Return sale for <span className="font-semibold text-text-primary">{returnConfirm?.customer?.name || 'Walk-in'}</span>?
+          </p>
+          <div className="bg-bg-tertiary rounded-lg p-3 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-text-tertiary">Sale Total</span><span>{formatCurrency(returnConfirm?.totalAmount)}</span></div>
+            <div className="flex justify-between"><span className="text-text-tertiary">Amount Paid</span><span className="text-danger">- {formatCurrency(returnConfirm?.amountPaid)}</span></div>
+          </div>
+          <p className="text-text-tertiary text-xs">This will restore all items to stock and reverse the cash payment.</p>
+          <div className="flex gap-3">
+            <button className="btn-secondary flex-1" onClick={() => setReturnConfirm(null)}>Cancel</button>
+            <button
+              className="bg-warning text-white px-4 py-2 rounded-lg text-sm font-medium flex-1 disabled:opacity-50"
+              onClick={() => returnSale.mutate(returnConfirm.id)}
+              disabled={returnSale.isPending}
+            >
+              {returnSale.isPending ? 'Processing...' : 'Confirm Return'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
