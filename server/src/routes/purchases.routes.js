@@ -97,7 +97,7 @@ router.post('/', async (req, res) => {
       }
 
       return created;
-    });
+    }, { timeout: 30000 });
 
     res.status(201).json(purchase);
   } catch (err) {
@@ -127,6 +127,7 @@ router.put('/:id', async (req, res) => {
         include: { items: true },
       });
       if (!old) throw new Error('Purchase not found');
+
 
       // Reverse old inventory
       for (const oldItem of old.items) {
@@ -196,7 +197,7 @@ router.put('/:id', async (req, res) => {
           });
         }
       }
-    });
+    }, { timeout: 30000 });
 
     const updated = await prisma.purchase.findUnique({
       where: { id: req.params.id },
