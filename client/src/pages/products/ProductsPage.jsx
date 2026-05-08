@@ -8,7 +8,7 @@ import Badge from '../../components/ui/Badge';
 import { formatCurrency } from '../../utils/format';
 import { SkeletonRow } from '../../components/ui/Skeleton';
 
-const emptyForm = { name: '', sku: '', brand: '', category: 'PERFUME', description: '', unit: 'bottle' };
+const emptyForm = { name: '', sku: '', brand: '', category: 'PERFUME', description: '', unit: 'bottle', sellingPrice: '' };
 
 export default function ProductsPage() {
   const qc = useQueryClient();
@@ -58,7 +58,7 @@ export default function ProductsPage() {
   const openAdd = () => { setEditProduct(null); setForm(emptyForm); setDrawerOpen(true); };
   const openEdit = (p) => {
     setEditProduct(p);
-    setForm({ name: p.name, sku: p.sku, brand: p.brand || '', category: p.category, description: p.description || '', unit: p.unit || 'bottle' });
+    setForm({ name: p.name, sku: p.sku, brand: p.brand || '', category: p.category, description: p.description || '', unit: p.unit || 'bottle', sellingPrice: p.sellingPrice || '' });
     setDrawerOpen(true);
   };
 
@@ -191,11 +191,24 @@ export default function ProductsPage() {
           </div>
           <div><label className="label">Unit</label><input className="input" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="bottle, piece..." /></div>
           <div><label className="label">Description</label><textarea className="input" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
-          {editProduct && (editProduct.costPrice > 0 || editProduct.sellingPrice > 0) && (
-            <div className="bg-bg-tertiary rounded-lg p-3 space-y-1 text-sm">
-              <p className="text-text-tertiary text-xs font-medium mb-2">Pricing (set via Receive Stock)</p>
-              <div className="flex justify-between"><span className="text-text-secondary">Cost Price</span><span className="text-text-primary">{formatCurrency(editProduct.costPrice, editProduct.currency)}</span></div>
-              <div className="flex justify-between"><span className="text-text-secondary">Outlet Price</span><span className="text-text-primary font-medium">{formatCurrency(editProduct.sellingPrice, editProduct.currency)}</span></div>
+          {editProduct && (
+            <div className="space-y-3">
+              {editProduct.costPrice > 0 && (
+                <div className="flex justify-between items-center bg-bg-tertiary rounded-lg px-3 py-2 text-sm">
+                  <span className="text-text-secondary">Cost Price</span>
+                  <span className="text-text-primary">{formatCurrency(editProduct.costPrice, editProduct.currency)}</span>
+                </div>
+              )}
+              <div>
+                <label className="label">Outlet Price (GHS)</label>
+                <input
+                  type="number" step="0.01" min={0} className="input"
+                  value={form.sellingPrice}
+                  onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })}
+                  placeholder="0.00"
+                />
+                <p className="text-text-tertiary text-xs mt-1">Usually set automatically via Receive Stock</p>
+              </div>
             </div>
           )}
           <div className="flex gap-3 pt-2">
