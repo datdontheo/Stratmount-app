@@ -29,7 +29,7 @@ function calcItems(rows, effectiveRate, shippingCostGHS) {
   });
 }
 
-function ItemsTable({ rows, computed, currency, onUpdate, onAdd, onRemove, productList }) {
+function ItemsTable({ rows, computed, currency, onUpdate, onAdd, onRemove, productList, shippingTotal, allRows }) {
   const fmt = (n) => (Number(n) || 0).toFixed(2);
   return (
     <div className="space-y-3">
@@ -87,7 +87,20 @@ function ItemsTable({ rows, computed, currency, onUpdate, onAdd, onRemove, produ
                     <input
                       type="number" step="0.01" className="input text-xs py-1.5 w-28"
                       value={row._shippingOverride !== undefined ? row._shippingOverride : fmt(c.shippingAllocated)}
-                      onChange={(e) => onUpdate(i, '_shippingOverride', Number(e.target.value))}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        onUpdate(i, '_shippingOverride', val);
+                        if (allRows && shippingTotal > 0) {
+                          const otherUnset = (allRows).filter((r, idx) => idx !== i && r._shippingOverride === undefined);
+                          if (otherUnset.length === 1) {
+                            const alreadySet = allRows.reduce((s, r, idx) =>
+                              idx !== i && r._shippingOverride !== undefined ? s + r._shippingOverride : s, 0);
+                            const remaining = (Number(shippingTotal) || 0) - alreadySet - val;
+                            const autoIdx = allRows.findIndex((r, idx) => idx !== i && r._shippingOverride === undefined);
+                            onUpdate(autoIdx, '_shippingOverride', Math.max(0, Math.round(remaining * 100) / 100));
+                          }
+                        }
+                      }}
                     />
                   </td>
                   <td className="td font-medium">{fmt(c.trueCostPerUnit)}</td>
@@ -368,6 +381,17 @@ export default function PurchasesPage() {
               onChange={(e) => setShippingCostGHS(Math.max(0, +e.target.value))}
               placeholder="0.00"
             />
+            {shippingCostGHS > 0 && (() => {
+              const allocated = rows.reduce((s, r) => r._shippingOverride !== undefined ? s + r._shippingOverride : s, 0);
+              const remaining = (Number(shippingCostGHS) || 0) - allocated;
+              const hasAnyOverride = rows.some((r) => r._shippingOverride !== undefined);
+              if (!hasAnyOverride) return null;
+              return (
+                <p className={`text-xs mt-1 ${Math.abs(remaining) < 0.01 ? 'text-success' : remaining < 0 ? 'text-danger' : 'text-warning'}`}>
+                  {Math.abs(remaining) < 0.01 ? '✓ Fully allocated' : remaining > 0 ? `Remaining: GH₵ ${remaining.toFixed(2)}` : `Over by GH₵ ${Math.abs(remaining).toFixed(2)}`}
+                </p>
+              );
+            })()}
           </div>
           <div className="sm:col-span-2 lg:col-span-3">
             <label className="label">Notes (optional)</label>
@@ -405,6 +429,8 @@ export default function PurchasesPage() {
           onAdd={() => setRows((prev) => [...prev, emptyItem()])}
           onRemove={(i) => setRows((prev) => prev.filter((_, idx) => idx !== i))}
           productList={filteredProducts}
+          shippingTotal={shippingCostGHS}
+          allRows={rows}
         />
       </div>
 
@@ -429,6 +455,10 @@ export default function PurchasesPage() {
           <div>
             <p className="text-text-tertiary text-xs mb-1">Grand Total (GHS)</p>
             <p className="text-success font-bold text-lg">{formatCurrency(grandTotal)}</p>
+          </div>
+          <div>
+            <p className="text-text-tertiary text-xs mb-1">Total Units</p>
+            <p className="text-text-primary font-bold text-lg">{rows.reduce((s, r) => s + (Number(r.quantity) || 0), 0)}</p>
           </div>
         </div>
         <button onClick={handleSave} disabled={save.isPending} className="btn-primary w-full flex items-center justify-center gap-2">
@@ -582,6 +612,17 @@ export default function PurchasesPage() {
                   value={editForm.shippingCostGHS}
                   onChange={(e) => setEditForm({ ...editForm, shippingCostGHS: Math.max(0, +e.target.value) })}
                 />
+                {editForm.shippingCostGHS > 0 && (() => {
+                  const allocated = editRows.reduce((s, r) => r._shippingOverride !== undefined ? s + r._shippingOverride : s, 0);
+                  const remaining = (Number(editForm.shippingCostGHS) || 0) - allocated;
+                  const hasAnyOverride = editRows.some((r) => r._shippingOverride !== undefined);
+                  if (!hasAnyOverride) return null;
+                  return (
+                    <p className={`text-xs mt-1 ${Math.abs(remaining) < 0.01 ? 'text-success' : remaining < 0 ? 'text-danger' : 'text-warning'}`}>
+                      {Math.abs(remaining) < 0.01 ? '✓ Fully allocated' : remaining > 0 ? `Remaining: GH₵ ${remaining.toFixed(2)}` : `Over by GH₵ ${Math.abs(remaining).toFixed(2)}`}
+                    </p>
+                  );
+                })()}
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
                 <label className="label">Notes</label>
@@ -597,6 +638,8 @@ export default function PurchasesPage() {
                 onAdd={() => setEditRows((prev) => [...prev, emptyItem()])}
                 onRemove={(i) => setEditRows((prev) => prev.filter((_, idx) => idx !== i))}
                 productList={products || []}
+                shippingTotal={editForm.shippingCostGHS}
+                allRows={editRows}
               />
             </div>
 
