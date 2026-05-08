@@ -178,12 +178,12 @@ export default function PurchasesPage() {
   const [productSearch, setProductSearch] = useState('');
   const [productCategory, setProductCategory] = useState('All');
 
-  const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/suppliers') });
-  const { data: products } = useQuery({ queryKey: ['products'], queryFn: () => api.get('/products') });
-  const { data: history } = useQuery({ queryKey: ['purchases'], queryFn: () => api.get('/purchases'), enabled: showHistory });
-  const { data: currentRates } = useQuery({ queryKey: ['exchange-rates-current'], queryFn: () => api.get('/exchange-rates/current') });
+  const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/suppliers') });
+  const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: () => api.get('/products') });
+  const { data: history = [] } = useQuery({ queryKey: ['purchases'], queryFn: () => api.get('/purchases'), enabled: showHistory });
+  const { data: currentRates = {} } = useQuery({ queryKey: ['exchange-rates-current'], queryFn: () => api.get('/exchange-rates/current') });
 
-  const filteredProducts = (products || []).filter((p) => {
+  const filteredProducts = (Array.isArray(products) ? products : []).filter((p) => {
     const matchesSearch = !productSearch ||
       p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
       p.sku.toLowerCase().includes(productSearch.toLowerCase()) ||
@@ -320,6 +320,17 @@ export default function PurchasesPage() {
       },
     });
   };
+
+  if (!Array.isArray(products) || !Array.isArray(suppliers) || !Array.isArray(history)) {
+    return (
+      <div className="space-y-6">
+        <h1 className="font-heading font-bold text-2xl text-text-primary">Receive Stock</h1>
+        <div className="card p-6 text-center">
+          <p className="text-text-secondary">Loading data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
