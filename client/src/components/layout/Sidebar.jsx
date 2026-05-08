@@ -23,7 +23,7 @@ const navItems = [
   { label: 'Settings', path: '/settings', icon: IconSettings, roles: ['ADMIN', 'WAREHOUSE', 'OUTLET'] },
 ];
 
-export default function Sidebar({ onClose }) {
+export default function Sidebar({ onClose, showClose }) {
   const { user, logout } = useAuthStore();
 
   const visible = navItems.filter((item) => item.roles.includes(user?.role));
@@ -36,7 +36,7 @@ export default function Sidebar({ onClose }) {
           <h1 className="font-heading font-bold text-xl text-text-primary tracking-tight">STRAT MOUNT</h1>
           <p className="text-text-tertiary text-xs mt-0.5">Business Management</p>
         </div>
-        {onClose && (
+        {(onClose && !showClose) && (
           <button onClick={onClose} className="text-text-secondary hover:text-text-primary lg:hidden">
             <IconX size={18} />
           </button>

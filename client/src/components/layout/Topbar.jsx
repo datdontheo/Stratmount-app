@@ -8,16 +8,25 @@ const roleBadgeColors = {
   OUTLET: 'bg-purple-500/20 text-purple-400',
 };
 
-export default function Topbar({ onMenuClick }) {
+export default function Topbar({ onMenuClick, onDesktopMenuClick, desktopSidebarOpen }) {
   const { user } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
 
   return (
     <header className="flex items-center justify-between px-4 lg:px-6 py-3 bg-bg-secondary border-b border-border">
       <div className="flex items-center gap-3">
+        {/* Mobile hamburger */}
         <button
           className="lg:hidden p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
           onClick={onMenuClick}
+        >
+          <IconMenu size={20} />
+        </button>
+        {/* Desktop hamburger */}
+        <button
+          className="hidden lg:flex p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+          onClick={onDesktopMenuClick}
+          title={desktopSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
         >
           <IconMenu size={20} />
         </button>

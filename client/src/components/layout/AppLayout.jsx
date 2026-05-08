@@ -6,13 +6,16 @@ import MobileNav from './MobileNav';
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
 
   return (
     <div className="flex h-full bg-bg-primary">
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:flex-shrink-0">
-        <Sidebar />
-      </div>
+      {desktopSidebarOpen && (
+        <div className="hidden lg:flex lg:flex-shrink-0">
+          <Sidebar onClose={() => setDesktopSidebarOpen(false)} showClose />
+        </div>
+      )}
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
@@ -29,7 +32,11 @@ export default function AppLayout() {
 
       {/* Main content */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <Topbar onMenuClick={() => setSidebarOpen(true)} />
+        <Topbar
+          onMenuClick={() => setSidebarOpen(true)}
+          onDesktopMenuClick={() => setDesktopSidebarOpen((v) => !v)}
+          desktopSidebarOpen={desktopSidebarOpen}
+        />
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 pb-24 lg:pb-6">
           <Outlet />
         </main>
