@@ -219,7 +219,7 @@ export default function PurchasesPage() {
       setPurchaseDate(new Date().toISOString().slice(0, 10));
       setProductSearch(''); setProductCategory('All');
     },
-    onError: (err) => toast.error(err.error || 'Failed to save shipment'),
+    onError: (err) => toast.error(typeof err === 'string' ? err : err?.error || 'Failed to save shipment'),
   });
 
   const update = useMutation({
@@ -231,7 +231,7 @@ export default function PurchasesPage() {
       qc.invalidateQueries({ queryKey: ['products'] });
       setEditingPurchase(null);
     },
-    onError: (err) => toast.error(err.error || 'Failed to update shipment'),
+    onError: (err) => toast.error(typeof err === 'string' ? err : err?.error || 'Failed to update shipment'),
   });
 
   const handleSave = () => {
