@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
@@ -29,7 +29,7 @@ function calcItems(rows, effectiveRate, shippingCostGHS) {
   });
 }
 
-function ItemsTable({ rows, computed, currency, onUpdate, onAdd, onRemove, productList, shippingTotal, allRows }) {
+function ItemsTable({ rows, computed, currency, onUpdate, onAdd, onRemove, productList, allProductList, shippingTotal, allRows }) {
   const fmt = (n) => (Number(n) || 0).toFixed(2);
   return (
     <div className="space-y-3">
@@ -67,8 +67,7 @@ function ItemsTable({ rows, computed, currency, onUpdate, onAdd, onRemove, produ
                         </option>
                       ))}
                       {row.productId && !productList.find((p) => p.id === row.productId) && (() => {
-                        const allProducts = productList;
-                        const sel = allProducts.find((p) => p.id === row.productId);
+                        const sel = (allProductList || productList).find((p) => p.id === row.productId);
                         return sel ? <option key={sel.id} value={sel.id}>{sel.name} ⚠ (outside filter)</option> : null;
                       })()}
                     </select>
@@ -429,6 +428,7 @@ export default function PurchasesPage() {
           onAdd={() => setRows((prev) => [...prev, emptyItem()])}
           onRemove={(i) => setRows((prev) => prev.filter((_, idx) => idx !== i))}
           productList={filteredProducts}
+          allProductList={products || []}
           shippingTotal={shippingCostGHS}
           allRows={rows}
         />
@@ -490,9 +490,8 @@ export default function PurchasesPage() {
               </thead>
               <tbody>
                 {(history || []).map((p) => (
-                  <>
+                  <Fragment key={p.id}>
                     <tr
-                      key={p.id}
                       className="table-row cursor-pointer"
                       onClick={() => setExpandedPurchaseId(expandedPurchaseId === p.id ? null : p.id)}
                     >
@@ -516,7 +515,7 @@ export default function PurchasesPage() {
                       </td>
                     </tr>
                     {expandedPurchaseId === p.id && (
-                      <tr key={`${p.id}-detail`}>
+                      <tr>
                         <td colSpan={8} className="px-4 pb-4 bg-bg-tertiary">
                           <table className="w-full text-xs mt-2">
                             <thead>
@@ -533,7 +532,7 @@ export default function PurchasesPage() {
                             <tbody>
                               {(p.items || []).map((item) => (
                                 <tr key={item.id} className="border-b border-border">
-                                  <td className="td font-medium">{item.product?.name}</td>
+                                  <td className="td font-medium">{item.product?.name || '(deleted product)'}</td>
                                   <td className="td">{item.quantity}</td>
                                   <td className="td">{formatCurrency(item.unitCostGHS || item.unitCost)}</td>
                                   <td className="td">{formatCurrency(item.shippingAllocated || 0)}</td>
@@ -547,7 +546,7 @@ export default function PurchasesPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 ))}
                 {!history?.length && (
                   <tr><td colSpan={8} className="td text-center text-text-tertiary py-6">No shipments recorded yet</td></tr>
@@ -638,6 +637,7 @@ export default function PurchasesPage() {
                 onAdd={() => setEditRows((prev) => [...prev, emptyItem()])}
                 onRemove={(i) => setEditRows((prev) => prev.filter((_, idx) => idx !== i))}
                 productList={products || []}
+                allProductList={products || []}
                 shippingTotal={editForm.shippingCostGHS}
                 allRows={editRows}
               />
