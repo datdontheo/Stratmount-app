@@ -213,7 +213,7 @@ export default function ProductsPage() {
           )}
           <div className="flex gap-3 pt-2">
             <button className="btn-secondary flex-1" onClick={() => setDrawerOpen(false)}>Cancel</button>
-            <button className="btn-primary flex-1" onClick={() => save.mutate(form)} disabled={save.isPending}>
+            <button className="btn-primary flex-1" onClick={() => save.mutate({ ...form, sellingPrice: Number(form.sellingPrice) || 0 })} disabled={save.isPending}>
               {save.isPending ? 'Saving...' : 'Save Product'}
             </button>
           </div>
