@@ -9,6 +9,14 @@ const CURRENCIES = ['GHS', 'AED', 'USD', 'GBP', 'EUR'];
 const CATEGORIES = ['All', 'PERFUME', 'GADGET', 'OTHER'];
 const DEFAULT_MARGIN = 20;
 
+// Safe render: never let a non-primitive escape into JSX
+const safe = (v) => {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'string' || typeof v === 'number') return v;
+  if (typeof v === 'boolean') return String(v);
+  try { return JSON.stringify(v); } catch { return ''; }
+};
+
 function emptyItem() {
   return { productId: '', quantity: 1, unitCost: 0, totalCost: 0, profitMargin: DEFAULT_MARGIN };
 }
@@ -39,8 +47,8 @@ function ItemsTable({ rows, computed, currency, onUpdate, onAdd, onRemove, produ
             <tr className="border-b border-border">
               <th className="th">Product</th>
               <th className="th">Qty</th>
-              <th className="th">Unit Cost ({currency})</th>
-              <th className="th">Total Cost ({currency})</th>
+              <th className="th">Unit Cost ({safe(currency)})</th>
+              <th className="th">Total Cost ({safe(currency)})</th>
               {currency !== 'GHS' && <th className="th">Unit Cost (GHS)</th>}
               <th className="th">Shipping Alloc. (GHS)</th>
               <th className="th">True Cost/Unit</th>
@@ -63,12 +71,12 @@ function ItemsTable({ rows, computed, currency, onUpdate, onAdd, onRemove, produ
                       <option value="">— Select product —</option>
                       {productList.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.name}{p.brand ? ` (${p.brand})` : ''} [{p.category}]
+                          {safe(p.name)}{p.brand ? ` (${safe(p.brand)})` : ''} [{safe(p.category)}]
                         </option>
                       ))}
                       {row.productId && !productList.find((p) => p.id === row.productId) && (() => {
                         const sel = (allProductList || productList).find((p) => p.id === row.productId);
-                        return sel ? <option key={sel.id} value={sel.id}>{sel.name} ⚠ (outside filter)</option> : null;
+                        return sel ? <option key={sel.id} value={sel.id}>{safe(sel.name)} ⚠ (outside filter)</option> : null;
                       })()}
                     </select>
                   </td>
@@ -347,7 +355,7 @@ export default function PurchasesPage() {
             <label className="label">Supplier</label>
             <select className="input" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
               <option value="">Select supplier</option>
-              {(suppliers || []).map((s) => <option key={s.id} value={s.id}>{s.name} ({s.country})</option>)}
+              {(suppliers || []).map((sup) => <option key={sup.id} value={sup.id}>{safe(sup.name)} ({safe(sup.country)})</option>)}
             </select>
           </div>
           <div>
@@ -375,7 +383,7 @@ export default function PurchasesPage() {
               />
               {currentRates?.[currency] && (
                 <p className="text-text-tertiary text-xs mt-1">
-                  Saved rate: {currentRates[currency]}
+                  Saved rate: {safe(currentRates[currency])}
                   {!exchangeRate && (
                     <button className="ml-2 underline" onClick={() => setExchangeRate(String(currentRates[currency]))}>Use</button>
                   )}
@@ -506,14 +514,14 @@ export default function PurchasesPage() {
                       className="table-row cursor-pointer"
                       onClick={() => setExpandedPurchaseId(expandedPurchaseId === p.id ? null : p.id)}
                     >
-                      <td className="td">{formatDate(p.purchaseDate)}</td>
-                      <td className="td font-medium">{p.supplier?.name}</td>
-                      <td className="td text-text-secondary">{p.invoiceNumber || '—'}</td>
-                      <td className="td">{p.currency}</td>
-                      <td className="td font-medium">{formatCurrency(p.totalGHS)}</td>
-                      <td className="td">{formatCurrency(p.shippingCostGHS || 0)}</td>
+                      <td className="td">{safe(formatDate(p.purchaseDate))}</td>
+                      <td className="td font-medium">{safe(p.supplier?.name)}</td>
+                      <td className="td text-text-secondary">{safe(p.invoiceNumber) || '—'}</td>
+                      <td className="td">{safe(p.currency)}</td>
+                      <td className="td font-medium">{safe(formatCurrency(p.totalGHS))}</td>
+                      <td className="td">{safe(formatCurrency(p.shippingCostGHS || 0))}</td>
                       <td className="td text-text-secondary">
-                        {p.items?.length} product{p.items?.length !== 1 ? 's' : ''}
+                        {safe(p.items?.length)} product{p.items?.length !== 1 ? 's' : ''}
                         <span className="ml-1 text-text-tertiary">{expandedPurchaseId === p.id ? '▲' : '▼'}</span>
                       </td>
                       <td className="td">
@@ -543,13 +551,13 @@ export default function PurchasesPage() {
                             <tbody>
                               {(p.items || []).map((item) => (
                                 <tr key={item.id} className="border-b border-border">
-                                  <td className="td font-medium">{item.product?.name || '(deleted product)'}</td>
-                                  <td className="td">{item.quantity}</td>
-                                  <td className="td">{formatCurrency(item.unitCostGHS || item.unitCost)}</td>
-                                  <td className="td">{formatCurrency(item.shippingAllocated || 0)}</td>
-                                  <td className="td">{formatCurrency(item.trueCostPerUnit || 0)}</td>
-                                  <td className="td">{item.profitMargin ?? '—'}%</td>
-                                  <td className="td font-semibold text-success">{formatCurrency(item.outletPrice || 0)}</td>
+                                  <td className="td font-medium">{safe(item.product?.name) || '(deleted product)'}</td>
+                                  <td className="td">{safe(item.quantity)}</td>
+                                  <td className="td">{safe(formatCurrency(item.unitCostGHS || item.unitCost))}</td>
+                                  <td className="td">{safe(formatCurrency(item.shippingAllocated || 0))}</td>
+                                  <td className="td">{safe(formatCurrency(item.trueCostPerUnit || 0))}</td>
+                                  <td className="td">{safe(item.profitMargin) || '—'}%</td>
+                                  <td className="td font-semibold text-success">{safe(formatCurrency(item.outletPrice || 0))}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -587,7 +595,7 @@ export default function PurchasesPage() {
                 <label className="label">Supplier</label>
                 <select className="input" value={editForm.supplierId} onChange={(e) => setEditForm({ ...editForm, supplierId: e.target.value })}>
                   <option value="">Select supplier</option>
-                  {(suppliers || []).map((s) => <option key={s.id} value={s.id}>{s.name} ({s.country})</option>)}
+                  {(suppliers || []).map((sup) => <option key={sup.id} value={sup.id}>{safe(sup.name)} ({safe(sup.country)})</option>)}
                 </select>
               </div>
               <div>
