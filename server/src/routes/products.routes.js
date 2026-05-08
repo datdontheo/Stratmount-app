@@ -19,7 +19,15 @@ router.get('/', async (req, res) => {
 
 router.post('/', requireAdmin, async (req, res) => {
   try {
-    const product = await prisma.product.create({ data: req.body });
+    const { name, sku, brand, category, description, unit, sellingPrice, costPrice, currency } = req.body;
+    const product = await prisma.product.create({
+      data: {
+        name, sku, brand: brand || null, category, description: description || null,
+        unit: unit || 'bottle', currency: currency || 'GHS',
+        sellingPrice: parseFloat(sellingPrice) || 0,
+        costPrice: parseFloat(costPrice) || 0,
+      },
+    });
     await prisma.inventory.create({
       data: { productId: product.id, quantity: 0, location: 'WAREHOUSE' },
     });
@@ -32,7 +40,16 @@ router.post('/', requireAdmin, async (req, res) => {
 
 router.put('/:id', requireAdmin, async (req, res) => {
   try {
-    const product = await prisma.product.update({ where: { id: req.params.id }, data: req.body });
+    const { name, sku, brand, category, description, unit, sellingPrice, costPrice, currency } = req.body;
+    const product = await prisma.product.update({
+      where: { id: req.params.id },
+      data: {
+        name, sku, brand: brand || null, category, description: description || null,
+        unit: unit || 'bottle', currency: currency || 'GHS',
+        sellingPrice: parseFloat(sellingPrice) || 0,
+        costPrice: parseFloat(costPrice) || 0,
+      },
+    });
     res.json(product);
   } catch (err) {
     res.status(500).json({ error: err.message });
