@@ -1,6 +1,6 @@
 import useAuthStore from '../../store/authStore';
 import useThemeStore from '../../store/themeStore';
-import { IconMenu, IconSun, IconMoon } from '../ui/Icons';
+import { IconMenu, IconSun, IconMoon, IconX } from '../ui/Icons';
 
 const roleBadgeColors = {
   ADMIN: 'bg-bg-tertiary text-text-primary',
@@ -22,13 +22,13 @@ export default function Topbar({ onMenuClick, onDesktopMenuClick, desktopSidebar
         >
           <IconMenu size={20} />
         </button>
-        {/* Desktop hamburger */}
+        {/* Desktop toggle — X when open, hamburger when closed */}
         <button
           className="hidden lg:flex p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
           onClick={onDesktopMenuClick}
           title={desktopSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
         >
-          <IconMenu size={20} />
+          {desktopSidebarOpen ? <IconX size={20} /> : <IconMenu size={20} />}
         </button>
         <div className="hidden lg:block">
           <p className="text-text-tertiary text-xs">Welcome back,</p>
