@@ -192,9 +192,9 @@ export default function PurchasesPage() {
     mutationFn: (data) => api.post('/purchases', data),
     onSuccess: () => {
       toast.success('Shipment saved — inventory updated');
-      qc.invalidateQueries(['purchases']);
-      qc.invalidateQueries(['inventory']);
-      qc.invalidateQueries(['products']);
+      qc.invalidateQueries({ queryKey: ['purchases'] });
+      qc.invalidateQueries({ queryKey: ['inventory'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
       setSupplierId(''); setInvoiceNumber(''); setCurrency('GHS');
       setExchangeRate(''); setShippingCostGHS(0); setNotes('');
       setRows([emptyItem()]);
@@ -208,9 +208,9 @@ export default function PurchasesPage() {
     mutationFn: ({ id, data }) => api.put(`/purchases/${id}`, data),
     onSuccess: () => {
       toast.success('Shipment updated — inventory adjusted');
-      qc.invalidateQueries(['purchases']);
-      qc.invalidateQueries(['inventory']);
-      qc.invalidateQueries(['products']);
+      qc.invalidateQueries({ queryKey: ['purchases'] });
+      qc.invalidateQueries({ queryKey: ['inventory'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
       setEditingPurchase(null);
     },
     onError: (err) => toast.error(err.error || 'Failed to update shipment'),
