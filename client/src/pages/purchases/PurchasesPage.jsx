@@ -24,9 +24,7 @@ function calcItems(rows, effectiveRate, shippingCostGHS) {
     const shippingAllocated = r._shippingOverride !== undefined ? r._shippingOverride : defaultShipping;
     const trueCostPerUnit = qty > 0 ? unitCostGHS + shippingAllocated / qty : unitCostGHS;
     const margin = Number(r.profitMargin) ?? DEFAULT_MARGIN;
-    const outletPrice = r._outletPriceOverride !== undefined
-      ? r._outletPriceOverride
-      : trueCostPerUnit * (1 + margin / 100);
+    const outletPrice = trueCostPerUnit * (1 + margin / 100);
     return { ...r, unitCostGHS, lineTotalGHS, shippingAllocated, trueCostPerUnit, outletPrice };
   });
 }
@@ -94,14 +92,23 @@ function ItemsTable({ rows, computed, currency, onUpdate, onAdd, onRemove, produ
                   </td>
                   <td className="td font-medium">{fmt(c.trueCostPerUnit)}</td>
                   <td className="td">
-                    <input type="number" step="1" className="input text-xs py-1.5 w-20" value={row.profitMargin} onChange={(e) => onUpdate(i, 'profitMargin', e.target.value)} />
+                    <input
+                      type="number" step="0.01" className="input text-xs py-1.5 w-20"
+                      value={fmt(row.profitMargin)}
+                      onChange={(e) => onUpdate(i, 'profitMargin', e.target.value)}
+                    />
                   </td>
                   <td className="td">
                     <input
                       type="number" step="0.01" className="input text-xs py-1.5 w-28 font-semibold"
                       style={{ color: 'var(--success)' }}
-                      value={row._outletPriceOverride !== undefined ? row._outletPriceOverride : fmt(c.outletPrice)}
-                      onChange={(e) => onUpdate(i, '_outletPriceOverride', Number(e.target.value))}
+                      value={fmt(c.outletPrice)}
+                      onChange={(e) => {
+                        const price = Number(e.target.value) || 0;
+                        const trueCost = c.trueCostPerUnit || 0;
+                        const impliedMargin = trueCost > 0 ? Math.round(((price / trueCost) - 1) * 10000) / 100 : 0;
+                        onUpdate(i, 'profitMargin', impliedMargin);
+                      }}
                     />
                   </td>
                   <td className="td">
@@ -133,7 +140,6 @@ function makeUpdateRow(setRows) {
       if (field === 'unitCost') updated.totalCost = (Number(value) || 0) * qty;
       else if (field === 'totalCost') updated.unitCost = qty > 0 ? (Number(value) || 0) / qty : 0;
       else if (field === 'quantity') updated.totalCost = (Number(updated.unitCost) || 0) * qty;
-      if (field === 'profitMargin') delete updated._outletPriceOverride;
       return updated;
     }));
   };
@@ -236,7 +242,7 @@ export default function PurchasesPage() {
         shippingAllocated: r.shippingAllocated,
         trueCostPerUnit: r.trueCostPerUnit,
         profitMargin: Number(r.profitMargin),
-        outletPrice: r._outletPriceOverride !== undefined ? r._outletPriceOverride : r.outletPrice,
+        outletPrice: r.outletPrice,
       })),
     });
   };
@@ -252,15 +258,21 @@ export default function PurchasesPage() {
       shippingCostGHS: purchase.shippingCostGHS || 0,
       notes: purchase.notes || '',
     });
-    setEditRows((purchase.items || []).map((item) => ({
-      productId: item.productId,
-      quantity: item.quantity,
-      unitCost: item.unitCost,
-      totalCost: item.totalCost || item.quantity * item.unitCost,
-      profitMargin: item.profitMargin ?? DEFAULT_MARGIN,
-      _shippingOverride: item.shippingAllocated,
-      _outletPriceOverride: item.outletPrice,
-    })));
+    setEditRows((purchase.items || []).map((item) => {
+      const trueCost = item.trueCostPerUnit || 0;
+      const savedMargin = item.profitMargin ?? DEFAULT_MARGIN;
+      const margin = trueCost > 0 && item.outletPrice
+        ? Math.round(((item.outletPrice / trueCost) - 1) * 10000) / 100
+        : savedMargin;
+      return {
+        productId: item.productId,
+        quantity: item.quantity,
+        unitCost: item.unitCost,
+        totalCost: item.totalCost || item.quantity * item.unitCost,
+        profitMargin: margin,
+        _shippingOverride: item.shippingAllocated,
+      };
+    }));
   };
 
   const handleUpdate = () => {
@@ -291,7 +303,7 @@ export default function PurchasesPage() {
           shippingAllocated: r.shippingAllocated,
           trueCostPerUnit: r.trueCostPerUnit,
           profitMargin: Number(r.profitMargin),
-          outletPrice: r._outletPriceOverride !== undefined ? r._outletPriceOverride : r.outletPrice,
+          outletPrice: r.outletPrice,
         })),
       },
     });
