@@ -1,10 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import { formatCurrency, formatDate } from '../../utils/format';
 import { IconPlus, IconX, IconShoppingCart } from '../../components/ui/Icons';
-import Badge from '../../components/ui/Badge';
 
 const CURRENCIES = ['GHS', 'AED', 'USD', 'GBP', 'EUR'];
 const CATEGORIES = ['All', 'PERFUME', 'GADGET', 'OTHER'];
@@ -25,15 +24,126 @@ function calcItems(rows, effectiveRate, shippingCostGHS) {
     const shippingAllocated = r._shippingOverride !== undefined ? r._shippingOverride : defaultShipping;
     const trueCostPerUnit = qty > 0 ? unitCostGHS + shippingAllocated / qty : unitCostGHS;
     const margin = Number(r.profitMargin) ?? DEFAULT_MARGIN;
-    const outletPrice = trueCostPerUnit * (1 + margin / 100);
+    const outletPrice = r._outletPriceOverride !== undefined
+      ? r._outletPriceOverride
+      : trueCostPerUnit * (1 + margin / 100);
     return { ...r, unitCostGHS, lineTotalGHS, shippingAllocated, trueCostPerUnit, outletPrice };
   });
 }
 
+function ItemsTable({ rows, computed, currency, onUpdate, onAdd, onRemove, productList }) {
+  const fmt = (n) => (Number(n) || 0).toFixed(2);
+  return (
+    <div className="space-y-3">
+      <div className="overflow-x-auto -mx-4 px-4">
+        <table className="w-full text-sm min-w-[1050px]">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="th">Product</th>
+              <th className="th">Qty</th>
+              <th className="th">Unit Cost ({currency})</th>
+              <th className="th">Total Cost ({currency})</th>
+              {currency !== 'GHS' && <th className="th">Unit Cost (GHS)</th>}
+              <th className="th">Shipping Alloc. (GHS)</th>
+              <th className="th">True Cost/Unit</th>
+              <th className="th">Margin %</th>
+              <th className="th">Outlet Price (GHS)</th>
+              <th className="th"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => {
+              const c = computed[i] || {};
+              return (
+                <tr key={i} className="border-b border-border">
+                  <td className="td min-w-[200px]">
+                    <select
+                      className="input text-xs py-1.5"
+                      value={row.productId}
+                      onChange={(e) => onUpdate(i, 'productId', e.target.value)}
+                    >
+                      <option value="">— Select product —</option>
+                      {productList.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}{p.brand ? ` (${p.brand})` : ''} [{p.category}]
+                        </option>
+                      ))}
+                      {row.productId && !productList.find((p) => p.id === row.productId) && (() => {
+                        const allProducts = productList;
+                        const sel = allProducts.find((p) => p.id === row.productId);
+                        return sel ? <option key={sel.id} value={sel.id}>{sel.name} ⚠ (outside filter)</option> : null;
+                      })()}
+                    </select>
+                  </td>
+                  <td className="td">
+                    <input type="number" min={1} className="input text-xs py-1.5 w-20" value={row.quantity} onChange={(e) => onUpdate(i, 'quantity', e.target.value)} />
+                  </td>
+                  <td className="td">
+                    <input type="number" step="0.01" className="input text-xs py-1.5 w-28" value={row.unitCost} onChange={(e) => onUpdate(i, 'unitCost', e.target.value)} />
+                  </td>
+                  <td className="td">
+                    <input type="number" step="0.01" className="input text-xs py-1.5 w-28" value={fmt(row.totalCost)} onChange={(e) => onUpdate(i, 'totalCost', e.target.value)} />
+                  </td>
+                  {currency !== 'GHS' && <td className="td text-text-secondary">{fmt(c.unitCostGHS)}</td>}
+                  <td className="td">
+                    <input
+                      type="number" step="0.01" className="input text-xs py-1.5 w-28"
+                      value={row._shippingOverride !== undefined ? row._shippingOverride : fmt(c.shippingAllocated)}
+                      onChange={(e) => onUpdate(i, '_shippingOverride', Number(e.target.value))}
+                    />
+                  </td>
+                  <td className="td font-medium">{fmt(c.trueCostPerUnit)}</td>
+                  <td className="td">
+                    <input type="number" step="1" className="input text-xs py-1.5 w-20" value={row.profitMargin} onChange={(e) => onUpdate(i, 'profitMargin', e.target.value)} />
+                  </td>
+                  <td className="td">
+                    <input
+                      type="number" step="0.01" className="input text-xs py-1.5 w-28 font-semibold"
+                      style={{ color: 'var(--success)' }}
+                      value={row._outletPriceOverride !== undefined ? row._outletPriceOverride : fmt(c.outletPrice)}
+                      onChange={(e) => onUpdate(i, '_outletPriceOverride', Number(e.target.value))}
+                    />
+                  </td>
+                  <td className="td">
+                    {rows.length > 1 && (
+                      <button onClick={() => onRemove(i)} className="text-text-tertiary hover:text-danger transition-colors">
+                        <IconX size={14} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <button onClick={onAdd} className="btn-secondary text-sm flex items-center gap-2">
+        <IconPlus size={14} /> Add Product
+      </button>
+    </div>
+  );
+}
+
+function makeUpdateRow(setRows) {
+  return (i, field, value) => {
+    setRows((prev) => prev.map((r, idx) => {
+      if (idx !== i) return r;
+      const updated = { ...r, [field]: value };
+      const qty = Number(field === 'quantity' ? value : updated.quantity) || 1;
+      if (field === 'unitCost') updated.totalCost = (Number(value) || 0) * qty;
+      else if (field === 'totalCost') updated.unitCost = qty > 0 ? (Number(value) || 0) / qty : 0;
+      else if (field === 'quantity') updated.totalCost = (Number(updated.unitCost) || 0) * qty;
+      if (field === 'profitMargin') delete updated._outletPriceOverride;
+      return updated;
+    }));
+  };
+}
+
 export default function PurchasesPage() {
   const qc = useQueryClient();
-  const [showHistory, setShowHistory] = useState(false);
+  const [showHistory, setShowHistory] = useState(true);
   const [expandedPurchaseId, setExpandedPurchaseId] = useState(null);
+  const [editingPurchase, setEditingPurchase] = useState(null);
 
   const [supplierId, setSupplierId] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -44,14 +154,15 @@ export default function PurchasesPage() {
   const [notes, setNotes] = useState('');
   const [rows, setRows] = useState([emptyItem()]);
 
+  const [editForm, setEditForm] = useState({});
+  const [editRows, setEditRows] = useState([]);
+
   const [productSearch, setProductSearch] = useState('');
   const [productCategory, setProductCategory] = useState('All');
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/suppliers') });
   const { data: products } = useQuery({ queryKey: ['products'], queryFn: () => api.get('/products') });
   const { data: history } = useQuery({ queryKey: ['purchases'], queryFn: () => api.get('/purchases'), enabled: showHistory });
-  const { data: velocityData } = useQuery({ queryKey: ['report-velocity'], queryFn: () => api.get('/reports/product-velocity'), enabled: showHistory });
-  const velocityByProduct = useMemo(() => Object.fromEntries((velocityData || []).map((v) => [v.productId, v])), [velocityData]);
   const { data: currentRates } = useQuery({ queryKey: ['exchange-rates-current'], queryFn: () => api.get('/exchange-rates/current') });
 
   const filteredProducts = (products || []).filter((p) => {
@@ -63,30 +174,17 @@ export default function PurchasesPage() {
     return matchesSearch && matchesCategory;
   });
 
-  // For GHS purchases, rate is 1. For others, user inputs rate.
   const effectiveRate = currency === 'GHS' ? 1 : (Number(exchangeRate) || 0);
   const computed = calcItems(rows, effectiveRate, Number(shippingCostGHS));
-
   const totalForeign = rows.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.unitCost) || 0), 0);
   const totalGHS = computed.reduce((s, r) => s + r.lineTotalGHS, 0);
   const grandTotal = totalGHS + Number(shippingCostGHS);
 
-  const updateRow = (i, field, value) => {
-    setRows((prev) => prev.map((r, idx) => {
-      if (idx !== i) return r;
-      const updated = { ...r, [field]: value };
-      const qty = Number(field === 'quantity' ? value : updated.quantity) || 1;
-      // Keep unitCost and totalCost in sync
-      if (field === 'unitCost') {
-        updated.totalCost = (Number(value) || 0) * qty;
-      } else if (field === 'totalCost') {
-        updated.unitCost = qty > 0 ? (Number(value) || 0) / qty : 0;
-      } else if (field === 'quantity') {
-        updated.totalCost = (Number(updated.unitCost) || 0) * qty;
-      }
-      return updated;
-    }));
-  };
+  const editEffectiveRate = (editForm.currency === 'GHS' || !editForm.currency) ? 1 : (Number(editForm.exchangeRate) || 0);
+  const editComputed = calcItems(editRows, editEffectiveRate, Number(editForm.shippingCostGHS || 0));
+
+  const updateRow = makeUpdateRow(setRows);
+  const updateEditRow = makeUpdateRow(setEditRows);
 
   const fmt = (n) => (Number(n) || 0).toFixed(2);
 
@@ -94,9 +192,9 @@ export default function PurchasesPage() {
     mutationFn: (data) => api.post('/purchases', data),
     onSuccess: () => {
       toast.success('Shipment saved — inventory updated');
-      qc.invalidateQueries(['purchases']);
-      qc.invalidateQueries(['inventory']);
-      qc.invalidateQueries(['products']);
+      qc.invalidateQueries({ queryKey: ['purchases'] });
+      qc.invalidateQueries({ queryKey: ['inventory'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
       setSupplierId(''); setInvoiceNumber(''); setCurrency('GHS');
       setExchangeRate(''); setShippingCostGHS(0); setNotes('');
       setRows([emptyItem()]);
@@ -104,6 +202,18 @@ export default function PurchasesPage() {
       setProductSearch(''); setProductCategory('All');
     },
     onError: (err) => toast.error(err.error || 'Failed to save shipment'),
+  });
+
+  const update = useMutation({
+    mutationFn: ({ id, data }) => api.put(`/purchases/${id}`, data),
+    onSuccess: () => {
+      toast.success('Shipment updated — inventory adjusted');
+      qc.invalidateQueries({ queryKey: ['purchases'] });
+      qc.invalidateQueries({ queryKey: ['inventory'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
+      setEditingPurchase(null);
+    },
+    onError: (err) => toast.error(err.error || 'Failed to update shipment'),
   });
 
   const handleSave = () => {
@@ -115,12 +225,9 @@ export default function PurchasesPage() {
     save.mutate({
       supplierId, invoiceNumber, purchaseDate, currency,
       exchangeRate: currency === 'GHS' ? 1 : Number(exchangeRate),
-      intermediaryCurrency: null,
-      intermediaryRate: null,
-      shippingCostForeign: 0,
-      shippingCostGHS: Number(shippingCostGHS),
-      totalForeign, totalGHS,
-      fxGainLoss: 0, notes,
+      intermediaryCurrency: null, intermediaryRate: null,
+      shippingCostForeign: 0, shippingCostGHS: Number(shippingCostGHS),
+      totalForeign, totalGHS, fxGainLoss: 0, notes,
       items: computed.map((r) => ({
         productId: r.productId,
         quantity: Number(r.quantity),
@@ -129,8 +236,64 @@ export default function PurchasesPage() {
         shippingAllocated: r.shippingAllocated,
         trueCostPerUnit: r.trueCostPerUnit,
         profitMargin: Number(r.profitMargin),
-        outletPrice: r.outletPrice,
+        outletPrice: r._outletPriceOverride !== undefined ? r._outletPriceOverride : r.outletPrice,
       })),
+    });
+  };
+
+  const openEdit = (purchase) => {
+    setEditingPurchase(purchase);
+    setEditForm({
+      supplierId: purchase.supplierId,
+      invoiceNumber: purchase.invoiceNumber || '',
+      purchaseDate: new Date(purchase.purchaseDate).toISOString().slice(0, 10),
+      currency: purchase.currency,
+      exchangeRate: purchase.currency !== 'GHS' ? String(purchase.exchangeRate || '') : '',
+      shippingCostGHS: purchase.shippingCostGHS || 0,
+      notes: purchase.notes || '',
+    });
+    setEditRows((purchase.items || []).map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+      unitCost: item.unitCost,
+      totalCost: item.totalCost || item.quantity * item.unitCost,
+      profitMargin: item.profitMargin ?? DEFAULT_MARGIN,
+      _shippingOverride: item.shippingAllocated,
+      _outletPriceOverride: item.outletPrice,
+    })));
+  };
+
+  const handleUpdate = () => {
+    if (!editForm.supplierId) return toast.error('Select a supplier');
+    if (editRows.some((r) => !r.productId)) return toast.error('Select a product for each row');
+
+    const editTotalForeign = editRows.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.unitCost) || 0), 0);
+    const editTotalGHS = editComputed.reduce((s, r) => s + r.lineTotalGHS, 0);
+
+    update.mutate({
+      id: editingPurchase.id,
+      data: {
+        supplierId: editForm.supplierId,
+        invoiceNumber: editForm.invoiceNumber,
+        purchaseDate: editForm.purchaseDate,
+        currency: editForm.currency,
+        exchangeRate: editForm.currency === 'GHS' ? 1 : Number(editForm.exchangeRate),
+        shippingCostGHS: Number(editForm.shippingCostGHS),
+        totalForeign: editTotalForeign,
+        totalGHS: editTotalGHS,
+        fxGainLoss: 0,
+        notes: editForm.notes,
+        items: editComputed.map((r) => ({
+          productId: r.productId,
+          quantity: Number(r.quantity),
+          unitCost: Number(r.unitCost),
+          unitCostGHS: r.unitCostGHS,
+          shippingAllocated: r.shippingAllocated,
+          trueCostPerUnit: r.trueCostPerUnit,
+          profitMargin: Number(r.profitMargin),
+          outletPrice: r._outletPriceOverride !== undefined ? r._outletPriceOverride : r.outletPrice,
+        })),
+      },
     });
   };
 
@@ -179,9 +342,7 @@ export default function PurchasesPage() {
                 <p className="text-text-tertiary text-xs mt-1">
                   Saved rate: {currentRates[currency]}
                   {!exchangeRate && (
-                    <button className="ml-2 underline" onClick={() => setExchangeRate(String(currentRates[currency]))}>
-                      Use
-                    </button>
+                    <button className="ml-2 underline" onClick={() => setExchangeRate(String(currentRates[currency]))}>Use</button>
                   )}
                 </p>
               )}
@@ -206,7 +367,6 @@ export default function PurchasesPage() {
       {/* Products Table */}
       <div className="card space-y-4">
         <h2 className="font-heading font-semibold text-text-primary">Products</h2>
-
         <div className="flex flex-col sm:flex-row gap-3">
           <input
             className="input sm:max-w-xs"
@@ -219,9 +379,7 @@ export default function PurchasesPage() {
               <button
                 key={cat}
                 onClick={() => setProductCategory(cat)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  productCategory === cat ? 'font-semibold' : 'bg-bg-tertiary text-text-secondary hover:text-text-primary'
-                }`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${productCategory === cat ? 'font-semibold' : 'bg-bg-tertiary text-text-secondary hover:text-text-primary'}`}
                 style={productCategory === cat ? { backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' } : {}}
               >
                 {cat}
@@ -229,85 +387,13 @@ export default function PurchasesPage() {
             ))}
           </div>
         </div>
-
-        <div className="overflow-x-auto -mx-4 px-4">
-          <table className="w-full text-sm min-w-[1000px]">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="th">Product</th>
-                <th className="th">Qty</th>
-                <th className="th">Unit Cost ({currency})</th>
-                <th className="th">Total Cost ({currency})</th>
-                {currency !== 'GHS' && <th className="th">Unit Cost (GHS)</th>}
-                <th className="th">Shipping Alloc. (GHS)</th>
-                <th className="th">True Cost/Unit</th>
-                <th className="th">Margin %</th>
-                <th className="th">Outlet Price</th>
-                <th className="th"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => {
-                const c = computed[i] || {};
-                return (
-                  <tr key={i} className="border-b border-border">
-                    <td className="td min-w-[200px]">
-                      <select
-                        className="input text-xs py-1.5"
-                        value={row.productId}
-                        onChange={(e) => updateRow(i, 'productId', e.target.value)}
-                      >
-                        <option value="">— Select product —</option>
-                        {filteredProducts.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}{p.brand ? ` (${p.brand})` : ''} [{p.category}]
-                          </option>
-                        ))}
-                        {row.productId && !filteredProducts.find((p) => p.id === row.productId) && (() => {
-                          const sel = (products || []).find((p) => p.id === row.productId);
-                          return sel ? <option key={sel.id} value={sel.id}>{sel.name} ⚠ (outside filter)</option> : null;
-                        })()}
-                      </select>
-                    </td>
-                    <td className="td">
-                      <input type="number" min={1} className="input text-xs py-1.5 w-20" value={row.quantity} onChange={(e) => updateRow(i, 'quantity', e.target.value)} />
-                    </td>
-                    <td className="td">
-                      <input type="number" step="0.01" className="input text-xs py-1.5 w-28" value={row.unitCost} onChange={(e) => updateRow(i, 'unitCost', e.target.value)} />
-                    </td>
-                    <td className="td">
-                      <input type="number" step="0.01" className="input text-xs py-1.5 w-28" value={fmt(row.totalCost)} onChange={(e) => updateRow(i, 'totalCost', e.target.value)} />
-                    </td>
-                    {currency !== 'GHS' && <td className="td text-text-secondary">{fmt(c.unitCostGHS)}</td>}
-                    <td className="td">
-                      <input
-                        type="number" step="0.01"
-                        className="input text-xs py-1.5 w-28"
-                        value={row._shippingOverride !== undefined ? row._shippingOverride : fmt(c.shippingAllocated)}
-                        onChange={(e) => updateRow(i, '_shippingOverride', Number(e.target.value))}
-                      />
-                    </td>
-                    <td className="td font-medium">{fmt(c.trueCostPerUnit)}</td>
-                    <td className="td">
-                      <input type="number" step="1" className="input text-xs py-1.5 w-20" value={row.profitMargin} onChange={(e) => updateRow(i, 'profitMargin', e.target.value)} />
-                    </td>
-                    <td className="td font-semibold text-success">{fmt(c.outletPrice)}</td>
-                    <td className="td">
-                      {rows.length > 1 && (
-                        <button onClick={() => setRows((prev) => prev.filter((_, idx) => idx !== i))} className="text-text-tertiary hover:text-danger transition-colors">
-                          <IconX size={14} />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <button onClick={() => setRows((prev) => [...prev, emptyItem()])} className="btn-secondary text-sm flex items-center gap-2">
-          <IconPlus size={14} /> Add Product
-        </button>
+        <ItemsTable
+          rows={rows} computed={computed} currency={currency}
+          onUpdate={updateRow}
+          onAdd={() => setRows((prev) => [...prev, emptyItem()])}
+          onRemove={(i) => setRows((prev) => prev.filter((_, idx) => idx !== i))}
+          productList={filteredProducts}
+        />
       </div>
 
       {/* Summary */}
@@ -339,7 +425,7 @@ export default function PurchasesPage() {
         </button>
       </div>
 
-      {/* History */}
+      {/* Shipment History */}
       <div className="card">
         <button className="flex items-center justify-between w-full" onClick={() => setShowHistory((v) => !v)}>
           <h2 className="font-heading font-semibold text-text-primary">Shipment History</h2>
@@ -357,6 +443,7 @@ export default function PurchasesPage() {
                   <th className="th">Total (GHS)</th>
                   <th className="th">Shipping (GHS)</th>
                   <th className="th">Items</th>
+                  <th className="th"></th>
                 </tr>
               </thead>
               <tbody>
@@ -377,35 +464,42 @@ export default function PurchasesPage() {
                         {p.items?.length} product{p.items?.length !== 1 ? 's' : ''}
                         <span className="ml-1 text-text-tertiary">{expandedPurchaseId === p.id ? '▲' : '▼'}</span>
                       </td>
+                      <td className="td">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEdit(p); }}
+                          className="text-xs px-2 py-1 rounded bg-bg-tertiary hover:bg-bg-secondary text-text-secondary hover:text-text-primary transition-colors"
+                        >
+                          Edit
+                        </button>
+                      </td>
                     </tr>
                     {expandedPurchaseId === p.id && (
                       <tr key={`${p.id}-detail`}>
-                        <td colSpan={7} className="px-4 pb-4 bg-bg-tertiary">
+                        <td colSpan={8} className="px-4 pb-4 bg-bg-tertiary">
                           <table className="w-full text-xs mt-2">
                             <thead>
                               <tr className="border-b border-border">
                                 <th className="th">Product</th>
-                                <th className="th">Qty in Shipment</th>
-                                <th className="th">Total Sold (all time)</th>
-                                <th className="th">Current Stock</th>
-                                <th className="th">Weekly Velocity</th>
-                                <th className="th">Status</th>
+                                <th className="th">Qty</th>
+                                <th className="th">Unit Cost (GHS)</th>
+                                <th className="th">Shipping Alloc.</th>
+                                <th className="th">True Cost/Unit</th>
+                                <th className="th">Margin</th>
+                                <th className="th">Outlet Price</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {(p.items || []).map((item) => {
-                                const v = velocityByProduct[item.productId];
-                                return (
-                                  <tr key={item.id} className="border-b border-border">
-                                    <td className="td font-medium">{item.product?.name}</td>
-                                    <td className="td">{item.quantity}</td>
-                                    <td className="td">{v?.totalSold ?? '—'}</td>
-                                    <td className="td">{v?.currentStock ?? '—'}</td>
-                                    <td className="td">{v?.weeklyVelocity > 0 ? `${v.weeklyVelocity}/wk` : '—'}</td>
-                                    <td className="td"><Badge value={v?.classification ?? ''} /></td>
-                                  </tr>
-                                );
-                              })}
+                              {(p.items || []).map((item) => (
+                                <tr key={item.id} className="border-b border-border">
+                                  <td className="td font-medium">{item.product?.name}</td>
+                                  <td className="td">{item.quantity}</td>
+                                  <td className="td">{formatCurrency(item.unitCostGHS || item.unitCost)}</td>
+                                  <td className="td">{formatCurrency(item.shippingAllocated || 0)}</td>
+                                  <td className="td">{formatCurrency(item.trueCostPerUnit || 0)}</td>
+                                  <td className="td">{item.profitMargin ?? '—'}%</td>
+                                  <td className="td font-semibold text-success">{formatCurrency(item.outletPrice || 0)}</td>
+                                </tr>
+                              ))}
                             </tbody>
                           </table>
                         </td>
@@ -414,13 +508,100 @@ export default function PurchasesPage() {
                   </>
                 ))}
                 {!history?.length && (
-                  <tr><td colSpan={7} className="td text-center text-text-tertiary py-6">No shipments recorded yet</td></tr>
+                  <tr><td colSpan={8} className="td text-center text-text-tertiary py-6">No shipments recorded yet</td></tr>
                 )}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {/* Edit Shipment Modal */}
+      {editingPurchase && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 overflow-y-auto py-8 px-4">
+          <div className="bg-bg-primary rounded-xl shadow-2xl w-full max-w-5xl space-y-6 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-heading font-bold text-xl text-text-primary">Edit Shipment</h2>
+                <p className="text-text-secondary text-sm mt-0.5">Adjusts inventory automatically based on quantity changes</p>
+              </div>
+              <button onClick={() => setEditingPurchase(null)} className="text-text-tertiary hover:text-text-primary p-1">
+                <IconX size={20} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="label">Supplier</label>
+                <select className="input" value={editForm.supplierId} onChange={(e) => setEditForm({ ...editForm, supplierId: e.target.value })}>
+                  <option value="">Select supplier</option>
+                  {(suppliers || []).map((s) => <option key={s.id} value={s.id}>{s.name} ({s.country})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">Invoice #</label>
+                <input className="input" value={editForm.invoiceNumber} onChange={(e) => setEditForm({ ...editForm, invoiceNumber: e.target.value })} placeholder="INV-001" />
+              </div>
+              <div>
+                <label className="label">Date</label>
+                <input type="date" className="input" value={editForm.purchaseDate} onChange={(e) => setEditForm({ ...editForm, purchaseDate: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">Currency</label>
+                <select className="input" value={editForm.currency} onChange={(e) => setEditForm({ ...editForm, currency: e.target.value, exchangeRate: '' })}>
+                  {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              {editForm.currency !== 'GHS' && (
+                <div>
+                  <label className="label">{editForm.currency} → GHS Rate</label>
+                  <input
+                    type="number" step="0.01" className="input"
+                    value={editForm.exchangeRate}
+                    onChange={(e) => setEditForm({ ...editForm, exchangeRate: e.target.value })}
+                    placeholder="e.g. 14.5"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="label">Shipping Cost (GHS)</label>
+                <input
+                  type="number" step="0.01" min={0} className="input"
+                  value={editForm.shippingCostGHS}
+                  onChange={(e) => setEditForm({ ...editForm, shippingCostGHS: Math.max(0, +e.target.value) })}
+                />
+              </div>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label className="label">Notes</label>
+                <input className="input" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} placeholder="Any notes about this shipment" />
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-text-primary mb-3">Products</h3>
+              <ItemsTable
+                rows={editRows} computed={editComputed} currency={editForm.currency || 'GHS'}
+                onUpdate={updateEditRow}
+                onAdd={() => setEditRows((prev) => [...prev, emptyItem()])}
+                onRemove={(i) => setEditRows((prev) => prev.filter((_, idx) => idx !== i))}
+                productList={products || []}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2 border-t border-border">
+              <button className="btn-secondary flex-1" onClick={() => setEditingPurchase(null)}>Cancel</button>
+              <button
+                className="btn-primary flex-1 flex items-center justify-center gap-2"
+                onClick={handleUpdate}
+                disabled={update.isPending}
+              >
+                <IconShoppingCart size={16} />
+                {update.isPending ? 'Updating...' : 'Update Shipment & Adjust Inventory'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
