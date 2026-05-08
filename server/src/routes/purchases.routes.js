@@ -128,21 +128,43 @@ router.put('/:id', async (req, res) => {
       });
       if (!old) throw new Error('Purchase not found');
 
+      const oldProductIds = old.items.map(i => i.productId);
+      const newProductIds = items.map(i => i.productId);
+      const allProductIds = [...new Set([...oldProductIds, ...newProductIds])];
 
-      // Reverse old inventory
+      // Batch load all inventory records
+      const inventories = await tx.inventory.findMany({
+        where: { productId: { in: allProductIds }, location: 'WAREHOUSE' },
+      });
+      const invByProduct = new Map(inventories.map(inv => [inv.productId, inv]));
+
+      // Calculate inventory changes
+      const invChanges = new Map();
+      for (const pid of allProductIds) invChanges.set(pid, 0);
       for (const oldItem of old.items) {
-        const inv = await tx.inventory.findFirst({
-          where: { productId: oldItem.productId, location: 'WAREHOUSE' },
-        });
+        invChanges.set(oldItem.productId, (invChanges.get(oldItem.productId) || 0) - oldItem.quantity);
+      }
+      for (const item of items) {
+        invChanges.set(item.productId, (invChanges.get(item.productId) || 0) + item.quantity);
+      }
+
+      // Batch update/create inventory
+      for (const [productId, change] of invChanges) {
+        if (change === 0) continue;
+        const inv = invByProduct.get(productId);
         if (inv) {
           await tx.inventory.update({
             where: { id: inv.id },
-            data: { quantity: { decrement: oldItem.quantity } },
+            data: { quantity: { increment: change } },
+          });
+        } else if (change > 0) {
+          await tx.inventory.create({
+            data: { productId, quantity: change, location: 'WAREHOUSE' },
           });
         }
       }
 
-      // Replace items
+      // Delete and recreate items
       await tx.purchaseItem.deleteMany({ where: { purchaseId: req.params.id } });
 
       await tx.purchase.update({
@@ -157,36 +179,23 @@ router.put('/:id', async (req, res) => {
         },
       });
 
+      // Batch create items
+      const itemsToCreate = items.map(item => ({
+        purchaseId: req.params.id,
+        productId: item.productId,
+        quantity: item.quantity,
+        unitCost: item.unitCost,
+        totalCost: item.quantity * item.unitCost,
+        unitCostGHS: item.unitCostGHS || 0,
+        shippingAllocated: item.shippingAllocated || 0,
+        trueCostPerUnit: item.trueCostPerUnit || 0,
+        profitMargin: item.profitMargin ?? 20,
+        outletPrice: item.outletPrice || 0,
+      }));
+      await tx.purchaseItem.createMany({ data: itemsToCreate });
+
+      // Batch update products
       for (const item of items) {
-        await tx.purchaseItem.create({
-          data: {
-            purchaseId: req.params.id,
-            productId: item.productId,
-            quantity: item.quantity,
-            unitCost: item.unitCost,
-            totalCost: item.quantity * item.unitCost,
-            unitCostGHS: item.unitCostGHS || 0,
-            shippingAllocated: item.shippingAllocated || 0,
-            trueCostPerUnit: item.trueCostPerUnit || 0,
-            profitMargin: item.profitMargin ?? 20,
-            outletPrice: item.outletPrice || 0,
-          },
-        });
-
-        const inv = await tx.inventory.findFirst({
-          where: { productId: item.productId, location: 'WAREHOUSE' },
-        });
-        if (inv) {
-          await tx.inventory.update({
-            where: { id: inv.id },
-            data: { quantity: { increment: item.quantity } },
-          });
-        } else {
-          await tx.inventory.create({
-            data: { productId: item.productId, quantity: item.quantity, location: 'WAREHOUSE' },
-          });
-        }
-
         if (item.trueCostPerUnit > 0) {
           await tx.product.update({
             where: { id: item.productId },
