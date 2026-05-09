@@ -56,7 +56,8 @@ function ItemsTable({ rows, computed, currency, onUpdate, onAdd, onRemove, produ
       setCreatingRowIdx(null);
       setNewProductForm({ name: '', sku: '', category: 'PERFUME', brand: '' });
     } catch (err) {
-      toast.error(typeof err === 'string' ? err : err?.error || 'Failed to create product');
+      const errMsg = typeof err === 'string' ? err : (typeof err?.error === 'string' ? err.error : 'Failed to create product');
+      toast.error(errMsg);
     } finally {
       setCreating(false);
     }
@@ -356,9 +357,14 @@ export default function PurchasesPage() {
   });
 
   const createProductFn = async (formData) => {
-    const result = await api.post('/products/quick-create', formData);
-    qc.invalidateQueries({ queryKey: ['products'] });
-    return result;
+    try {
+      const result = await api.post('/products/quick-create', formData);
+      qc.invalidateQueries({ queryKey: ['products'] });
+      return result;
+    } catch (err) {
+      const message = typeof err === 'string' ? err : (typeof err?.message === 'string' ? err.message : 'Failed to create product');
+      throw message;
+    }
   };
 
 
