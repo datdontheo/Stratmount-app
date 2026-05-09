@@ -54,43 +54,51 @@ router.post('/', async (req, res) => {
           shippingCostGHS: shippingCostGHS || 0,
           fxGainLoss, notes,
           items: {
-            create: items.map((item) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              unitCost: item.unitCost,
-              totalCost: item.quantity * item.unitCost,
-              unitCostGHS: item.unitCostGHS || 0,
-              shippingAllocated: item.shippingAllocated || 0,
-              trueCostPerUnit: item.trueCostPerUnit || 0,
-              profitMargin: item.profitMargin ?? 20,
-              outletPrice: item.outletPrice || 0,
-            })),
+            create: items.map((item) => {
+              const qty = Number(item.quantity) || 0;
+              const unitCost = Number(item.unitCost) || 0;
+              return {
+                productId: item.productId,
+                quantity: qty,
+                unitCost,
+                totalCost: qty * unitCost,
+                unitCostGHS: Number(item.unitCostGHS) || 0,
+                shippingAllocated: Number(item.shippingAllocated) || 0,
+                trueCostPerUnit: Number(item.trueCostPerUnit) || 0,
+                profitMargin: Number(item.profitMargin) ?? 20,
+                outletPrice: Number(item.outletPrice) || 0,
+              };
+            }),
           },
         },
         include: { supplier: true, items: { include: { product: true } } },
       });
 
       for (const item of items) {
+        const qty = Number(item.quantity) || 0;
+        const trueCostPerUnit = Number(item.trueCostPerUnit) || 0;
+        const outletPrice = Number(item.outletPrice) || 0;
+
         const existing = await tx.inventory.findFirst({
           where: { productId: item.productId, location: 'WAREHOUSE' },
         });
         if (existing) {
           await tx.inventory.update({
             where: { id: existing.id },
-            data: { quantity: { increment: item.quantity } },
+            data: { quantity: { increment: qty } },
           });
         } else {
           await tx.inventory.create({
-            data: { productId: item.productId, quantity: item.quantity, location: 'WAREHOUSE' },
+            data: { productId: item.productId, quantity: qty, location: 'WAREHOUSE' },
           });
         }
 
-        if (item.trueCostPerUnit > 0) {
+        if (trueCostPerUnit > 0) {
           await tx.product.update({
             where: { id: item.productId },
             data: {
-              costPrice: item.trueCostPerUnit,
-              sellingPrice: item.outletPrice || item.trueCostPerUnit,
+              costPrice: trueCostPerUnit,
+              sellingPrice: outletPrice || trueCostPerUnit,
             },
           });
         }
@@ -158,18 +166,26 @@ router.put('/:id', async (req, res) => {
       });
 
       for (const item of items) {
+        const qty = Number(item.quantity) || 0;
+        const unitCost = Number(item.unitCost) || 0;
+        const unitCostGHS = Number(item.unitCostGHS) || 0;
+        const shippingAllocated = Number(item.shippingAllocated) || 0;
+        const trueCostPerUnit = Number(item.trueCostPerUnit) || 0;
+        const profitMargin = Number(item.profitMargin) ?? 20;
+        const outletPrice = Number(item.outletPrice) || 0;
+
         await tx.purchaseItem.create({
           data: {
             purchaseId: req.params.id,
             productId: item.productId,
-            quantity: item.quantity,
-            unitCost: item.unitCost,
-            totalCost: item.quantity * item.unitCost,
-            unitCostGHS: item.unitCostGHS || 0,
-            shippingAllocated: item.shippingAllocated || 0,
-            trueCostPerUnit: item.trueCostPerUnit || 0,
-            profitMargin: item.profitMargin ?? 20,
-            outletPrice: item.outletPrice || 0,
+            quantity: qty,
+            unitCost,
+            totalCost: qty * unitCost,
+            unitCostGHS,
+            shippingAllocated,
+            trueCostPerUnit,
+            profitMargin,
+            outletPrice,
           },
         });
 
@@ -179,20 +195,20 @@ router.put('/:id', async (req, res) => {
         if (inv) {
           await tx.inventory.update({
             where: { id: inv.id },
-            data: { quantity: { increment: item.quantity } },
+            data: { quantity: { increment: qty } },
           });
         } else {
           await tx.inventory.create({
-            data: { productId: item.productId, quantity: item.quantity, location: 'WAREHOUSE' },
+            data: { productId: item.productId, quantity: qty, location: 'WAREHOUSE' },
           });
         }
 
-        if (item.trueCostPerUnit > 0) {
+        if (trueCostPerUnit > 0) {
           await tx.product.update({
             where: { id: item.productId },
             data: {
-              costPrice: item.trueCostPerUnit,
-              sellingPrice: item.outletPrice || item.trueCostPerUnit,
+              costPrice: trueCostPerUnit,
+              sellingPrice: outletPrice || trueCostPerUnit,
             },
           });
         }
