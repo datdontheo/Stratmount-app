@@ -38,6 +38,28 @@ router.post('/', requireAdmin, async (req, res) => {
   }
 });
 
+router.post('/quick-create', requireAdmin, async (req, res) => {
+  try {
+    const { name, sku, category = 'OTHER', brand } = req.body;
+    if (!name || !sku) return res.status(400).json({ error: 'Name and SKU are required' });
+
+    const product = await prisma.product.create({
+      data: {
+        name, sku, category, brand: brand || null,
+        unit: 'bottle', currency: 'GHS',
+        sellingPrice: 0, costPrice: 0,
+      },
+    });
+    await prisma.inventory.create({
+      data: { productId: product.id, quantity: 0, location: 'WAREHOUSE' },
+    });
+    res.status(201).json(product);
+  } catch (err) {
+    if (err.code === 'P2002') return res.status(400).json({ error: 'SKU already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.put('/:id', requireAdmin, async (req, res) => {
   try {
     const { name, sku, brand, category, description, unit, sellingPrice, costPrice, currency } = req.body;

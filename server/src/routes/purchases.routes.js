@@ -209,4 +209,35 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+router.delete('/:id', async (req, res) => {
+  try {
+    await prisma.$transaction(async (tx) => {
+      const purchase = await tx.purchase.findUnique({
+        where: { id: req.params.id },
+        include: { items: true },
+      });
+      if (!purchase) throw new Error('Purchase not found');
+
+      for (const item of purchase.items) {
+        const inv = await tx.inventory.findFirst({
+          where: { productId: item.productId, location: 'WAREHOUSE' },
+        });
+        if (inv) {
+          await tx.inventory.update({
+            where: { id: inv.id },
+            data: { quantity: { decrement: item.quantity } },
+          });
+        }
+      }
+
+      await tx.purchaseItem.deleteMany({ where: { purchaseId: req.params.id } });
+      await tx.purchase.delete({ where: { id: req.params.id } });
+    }, { timeout: 30000 });
+
+    res.json({ message: 'Purchase deleted — inventory reversed' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
