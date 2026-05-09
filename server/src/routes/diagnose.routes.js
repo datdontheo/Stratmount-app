@@ -36,4 +36,36 @@ router.get('/inventory-vs-purchases', async (req, res) => {
   }
 });
 
+router.post('/fix-inventory', async (req, res) => {
+  try {
+    const purchases = await prisma.purchase.findMany({
+      include: { items: true },
+    });
+
+    let fixed = 0;
+    for (const purchase of purchases) {
+      for (const item of purchase.items) {
+        const inv = await prisma.inventory.findFirst({
+          where: { productId: item.productId, location: 'WAREHOUSE' },
+        });
+
+        if (!inv) {
+          await prisma.inventory.create({
+            data: {
+              productId: item.productId,
+              quantity: Number(item.quantity) || 0,
+              location: 'WAREHOUSE',
+            },
+          });
+          fixed++;
+        }
+      }
+    }
+
+    res.json({ message: `Fixed ${fixed} inventory records`, success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
