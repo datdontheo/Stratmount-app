@@ -9,7 +9,14 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (res) => res.data,
+  (res) => {
+    const data = res.data;
+    // Detect infrastructure error responses (Vercel/proxy) that arrive as 2xx
+    if (data && typeof data === 'object' && !Array.isArray(data) && data.code && data.message && !data.id && !data.token) {
+      return Promise.reject(data);
+    }
+    return data;
+  },
   (err) => {
     if (err.response?.status === 401) {
       localStorage.removeItem('sm_token');
