@@ -49,11 +49,21 @@ router.get('/fix-inventory', async (req, res) => {
           where: { productId: item.productId, location: 'WAREHOUSE' },
         });
 
-        if (!inv) {
+        const itemQty = Number(item.quantity) || 0;
+
+        if (inv) {
+          if (inv.quantity !== itemQty) {
+            await prisma.inventory.update({
+              where: { id: inv.id },
+              data: { quantity: itemQty },
+            });
+            fixed++;
+          }
+        } else {
           await prisma.inventory.create({
             data: {
               productId: item.productId,
-              quantity: Number(item.quantity) || 0,
+              quantity: itemQty,
               location: 'WAREHOUSE',
             },
           });
