@@ -209,6 +209,15 @@ export default function PurchasesPage() {
   const editEffectiveRate = (editForm.currency === 'GHS' || !editForm.currency) ? 1 : (Number(editForm.exchangeRate) || 0);
   const editComputed = calcItems(editRows, editEffectiveRate, Number(editForm.shippingCostGHS || 0));
 
+  // Shipping remaining counters — computed here to avoid IIFEs in JSX
+  const newShippingAllocated = rows.reduce((s, r) => r._shippingOverride !== undefined ? s + r._shippingOverride : s, 0);
+  const newShippingRemaining = (Number(shippingCostGHS) || 0) - newShippingAllocated;
+  const newHasOverride = rows.some((r) => r._shippingOverride !== undefined);
+
+  const editShippingAllocated = editRows.reduce((s, r) => r._shippingOverride !== undefined ? s + r._shippingOverride : s, 0);
+  const editShippingRemaining = (Number(editForm.shippingCostGHS) || 0) - editShippingAllocated;
+  const editHasOverride = editRows.some((r) => r._shippingOverride !== undefined);
+
   const updateRow = makeUpdateRow(setRows);
   const updateEditRow = makeUpdateRow(setEditRows);
 
@@ -399,17 +408,11 @@ export default function PurchasesPage() {
               onChange={(e) => setShippingCostGHS(Math.max(0, +e.target.value))}
               placeholder="0.00"
             />
-            {shippingCostGHS > 0 && (() => {
-              const allocated = rows.reduce((s, r) => r._shippingOverride !== undefined ? s + r._shippingOverride : s, 0);
-              const remaining = (Number(shippingCostGHS) || 0) - allocated;
-              const hasAnyOverride = rows.some((r) => r._shippingOverride !== undefined);
-              if (!hasAnyOverride) return null;
-              return (
-                <p className={`text-xs mt-1 ${Math.abs(remaining) < 0.01 ? 'text-success' : remaining < 0 ? 'text-danger' : 'text-warning'}`}>
-                  {Math.abs(remaining) < 0.01 ? '✓ Fully allocated' : remaining > 0 ? `Remaining: GH₵ ${remaining.toFixed(2)}` : `Over by GH₵ ${Math.abs(remaining).toFixed(2)}`}
-                </p>
-              );
-            })()}
+            {shippingCostGHS > 0 && newHasOverride && (
+              <p className={`text-xs mt-1 ${Math.abs(newShippingRemaining) < 0.01 ? 'text-success' : newShippingRemaining < 0 ? 'text-danger' : 'text-warning'}`}>
+                {Math.abs(newShippingRemaining) < 0.01 ? '✓ Fully allocated' : newShippingRemaining > 0 ? `Remaining: GH₵ ${newShippingRemaining.toFixed(2)}` : `Over by GH₵ ${Math.abs(newShippingRemaining).toFixed(2)}`}
+              </p>
+            )}
           </div>
           <div className="sm:col-span-2 lg:col-span-3">
             <label className="label">Notes (optional)</label>
@@ -630,17 +633,11 @@ export default function PurchasesPage() {
                   value={editForm.shippingCostGHS}
                   onChange={(e) => setEditForm({ ...editForm, shippingCostGHS: Math.max(0, +e.target.value) })}
                 />
-                {editForm.shippingCostGHS > 0 && (() => {
-                  const allocated = editRows.reduce((s, r) => r._shippingOverride !== undefined ? s + r._shippingOverride : s, 0);
-                  const remaining = (Number(editForm.shippingCostGHS) || 0) - allocated;
-                  const hasAnyOverride = editRows.some((r) => r._shippingOverride !== undefined);
-                  if (!hasAnyOverride) return null;
-                  return (
-                    <p className={`text-xs mt-1 ${Math.abs(remaining) < 0.01 ? 'text-success' : remaining < 0 ? 'text-danger' : 'text-warning'}`}>
-                      {Math.abs(remaining) < 0.01 ? '✓ Fully allocated' : remaining > 0 ? `Remaining: GH₵ ${remaining.toFixed(2)}` : `Over by GH₵ ${Math.abs(remaining).toFixed(2)}`}
-                    </p>
-                  );
-                })()}
+                {editForm.shippingCostGHS > 0 && editHasOverride && (
+                  <p className={`text-xs mt-1 ${Math.abs(editShippingRemaining) < 0.01 ? 'text-success' : editShippingRemaining < 0 ? 'text-danger' : 'text-warning'}`}>
+                    {Math.abs(editShippingRemaining) < 0.01 ? '✓ Fully allocated' : editShippingRemaining > 0 ? `Remaining: GH₵ ${editShippingRemaining.toFixed(2)}` : `Over by GH₵ ${Math.abs(editShippingRemaining).toFixed(2)}`}
+                  </p>
+                )}
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
                 <label className="label">Notes</label>
