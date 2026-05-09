@@ -62,19 +62,11 @@ router.post('/receive', requireAdminOrWarehouse, async (req, res) => {
     if (!productId || !quantity || quantity < 1) {
       return res.status(400).json({ error: 'Product and quantity are required' });
     }
-    const existing = await prisma.inventory.findFirst({
-      where: { productId, location: 'WAREHOUSE' },
+    await prisma.inventory.upsert({
+      where: { productId_location: { productId, location: 'WAREHOUSE' } },
+      update: { quantity: { increment: quantity } },
+      create: { productId, quantity, location: 'WAREHOUSE' },
     });
-    if (existing) {
-      await prisma.inventory.update({
-        where: { id: existing.id },
-        data: { quantity: { increment: quantity } },
-      });
-    } else {
-      await prisma.inventory.create({
-        data: { productId, quantity, location: 'WAREHOUSE' },
-      });
-    }
     res.json({ message: 'Stock received into warehouse' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -88,43 +80,36 @@ router.post('/assign', requireAdminOrWarehouse, async (req, res) => {
     const toUser = await prisma.user.findUnique({ where: { id: toUserId } });
     if (!toUser) return res.status(404).json({ error: 'User not found' });
 
-    // Deduct from warehouse
-    const warehouseInv = await prisma.inventory.findFirst({
-      where: { productId, location: 'WAREHOUSE' },
-    });
-    if (!warehouseInv || warehouseInv.quantity < quantity) {
-      return res.status(400).json({ error: 'Insufficient warehouse stock' });
-    }
-
-    await prisma.inventory.update({
-      where: { id: warehouseInv.id },
-      data: { quantity: { decrement: quantity } },
-    });
-
-    // Add to outlet
     const outletLocation = `OUTLET_${toUserId}`;
-    const existing = await prisma.inventory.findFirst({
-      where: { productId, location: outletLocation },
-    });
 
-    if (existing) {
-      await prisma.inventory.update({
-        where: { id: existing.id },
-        data: { quantity: { increment: quantity } },
+    await prisma.$transaction(async (tx) => {
+      const warehouseInv = await tx.inventory.findUnique({
+        where: { productId_location: { productId, location: 'WAREHOUSE' } },
       });
-    } else {
-      await prisma.inventory.create({
-        data: { productId, quantity, location: outletLocation, holderId: toUserId },
-      });
-    }
+      if (!warehouseInv || warehouseInv.quantity < quantity) {
+        throw new Error('Insufficient warehouse stock');
+      }
 
-    await prisma.inventoryAssignment.create({
-      data: { productId, toUserId, quantity, notes },
+      await tx.inventory.update({
+        where: { productId_location: { productId, location: 'WAREHOUSE' } },
+        data: { quantity: { decrement: quantity } },
+      });
+
+      await tx.inventory.upsert({
+        where: { productId_location: { productId, location: outletLocation } },
+        update: { quantity: { increment: quantity } },
+        create: { productId, quantity, location: outletLocation, holderId: toUserId },
+      });
+
+      await tx.inventoryAssignment.create({
+        data: { productId, toUserId, quantity, notes },
+      });
     });
 
     res.json({ message: 'Stock assigned successfully' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const status = err.message === 'Insufficient warehouse stock' ? 400 : 500;
+    res.status(status).json({ error: err.message });
   }
 });
 
@@ -137,35 +122,31 @@ router.post('/return', requireAdminOrWarehouse, async (req, res) => {
     }
 
     const outletLocation = `OUTLET_${fromUserId}`;
-    const outletInv = await prisma.inventory.findFirst({
-      where: { productId, location: outletLocation },
-    });
-    if (!outletInv || outletInv.quantity < quantity) {
-      return res.status(400).json({ error: 'Insufficient outlet stock to return' });
-    }
 
-    await prisma.inventory.update({
-      where: { id: outletInv.id },
-      data: { quantity: { decrement: quantity } },
-    });
+    await prisma.$transaction(async (tx) => {
+      const outletInv = await tx.inventory.findUnique({
+        where: { productId_location: { productId, location: outletLocation } },
+      });
+      if (!outletInv || outletInv.quantity < quantity) {
+        throw new Error('Insufficient outlet stock to return');
+      }
 
-    const warehouseInv = await prisma.inventory.findFirst({
-      where: { productId, location: 'WAREHOUSE' },
+      await tx.inventory.update({
+        where: { productId_location: { productId, location: outletLocation } },
+        data: { quantity: { decrement: quantity } },
+      });
+
+      await tx.inventory.upsert({
+        where: { productId_location: { productId, location: 'WAREHOUSE' } },
+        update: { quantity: { increment: quantity } },
+        create: { productId, quantity, location: 'WAREHOUSE' },
+      });
     });
-    if (warehouseInv) {
-      await prisma.inventory.update({
-        where: { id: warehouseInv.id },
-        data: { quantity: { increment: quantity } },
-      });
-    } else {
-      await prisma.inventory.create({
-        data: { productId, quantity, location: 'WAREHOUSE' },
-      });
-    }
 
     res.json({ message: 'Stock returned to warehouse' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const status = err.message === 'Insufficient outlet stock to return' ? 400 : 500;
+    res.status(status).json({ error: err.message });
   }
 });
 
@@ -177,13 +158,15 @@ router.post('/writeoff', requireAdminOrWarehouse, async (req, res) => {
       return res.status(400).json({ error: 'Product, location, and quantity are required' });
     }
 
-    const inv = await prisma.inventory.findFirst({ where: { productId, location } });
+    const inv = await prisma.inventory.findUnique({
+      where: { productId_location: { productId, location } },
+    });
     if (!inv || inv.quantity < quantity) {
       return res.status(400).json({ error: 'Insufficient stock to write off' });
     }
 
     await prisma.inventory.update({
-      where: { id: inv.id },
+      where: { productId_location: { productId, location } },
       data: { quantity: { decrement: quantity } },
     });
 
@@ -197,36 +180,30 @@ router.post('/transfer', requireAdminOrWarehouse, async (req, res) => {
   try {
     const { productId, fromLocation, toLocation, quantity, toUserId } = req.body;
 
-    const fromInv = await prisma.inventory.findFirst({
-      where: { productId, location: fromLocation },
-    });
-    if (!fromInv || fromInv.quantity < quantity) {
-      return res.status(400).json({ error: 'Insufficient stock in source location' });
-    }
-
-    await prisma.inventory.update({
-      where: { id: fromInv.id },
-      data: { quantity: { decrement: quantity } },
-    });
-
-    const toInv = await prisma.inventory.findFirst({
-      where: { productId, location: toLocation },
-    });
-
-    if (toInv) {
-      await prisma.inventory.update({
-        where: { id: toInv.id },
-        data: { quantity: { increment: quantity } },
+    await prisma.$transaction(async (tx) => {
+      const fromInv = await tx.inventory.findUnique({
+        where: { productId_location: { productId, location: fromLocation } },
       });
-    } else {
-      await prisma.inventory.create({
-        data: { productId, quantity, location: toLocation, holderId: toUserId || null },
+      if (!fromInv || fromInv.quantity < quantity) {
+        throw new Error('Insufficient stock in source location');
+      }
+
+      await tx.inventory.update({
+        where: { productId_location: { productId, location: fromLocation } },
+        data: { quantity: { decrement: quantity } },
       });
-    }
+
+      await tx.inventory.upsert({
+        where: { productId_location: { productId, location: toLocation } },
+        update: { quantity: { increment: quantity } },
+        create: { productId, quantity, location: toLocation, holderId: toUserId || null },
+      });
+    });
 
     res.json({ message: 'Stock transferred successfully' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const status = err.message === 'Insufficient stock in source location' ? 400 : 500;
+    res.status(status).json({ error: err.message });
   }
 });
 

@@ -66,6 +66,8 @@ model Inventory {
   location  String
   holderId  String?
   updatedAt DateTime @updatedAt
+
+  @@unique([productId, location])
 }
 
 model InventoryAssignment {
