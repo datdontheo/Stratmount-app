@@ -78,4 +78,32 @@ router.get('/fix-inventory', async (req, res) => {
   }
 });
 
+router.get('/inventory-zeros', async (req, res) => {
+  try {
+    const zeros = await prisma.inventory.findMany({
+      where: { quantity: 0, location: 'WAREHOUSE' },
+      include: { product: true },
+    });
+
+    const withPurchases = await Promise.all(
+      zeros.map(async (inv) => {
+        const purchases = await prisma.purchaseItem.findMany({
+          where: { productId: inv.productId },
+        });
+        return {
+          productId: inv.productId,
+          productName: inv.product.name,
+          currentQty: inv.quantity,
+          totalReceived: purchases.reduce((sum, p) => sum + p.quantity, 0),
+          purchaseCount: purchases.length,
+        };
+      })
+    );
+
+    res.json({ zerosWithNoReceipt: withPurchases.filter(p => p.totalReceived === 0), zerosWithReceipt: withPurchases.filter(p => p.totalReceived > 0) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
