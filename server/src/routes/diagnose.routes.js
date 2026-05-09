@@ -38,41 +38,43 @@ router.get('/inventory-vs-purchases', async (req, res) => {
 
 router.get('/fix-inventory', async (req, res) => {
   try {
-    const purchases = await prisma.purchase.findMany({
-      include: { items: true },
+    const purchaseItems = await prisma.purchaseItem.findMany();
+
+    const qtByProduct = {};
+    purchaseItems.forEach(item => {
+      if (!qtByProduct[item.productId]) {
+        qtByProduct[item.productId] = 0;
+      }
+      qtByProduct[item.productId] += Number(item.quantity) || 0;
     });
 
     let fixed = 0;
-    for (const purchase of purchases) {
-      for (const item of purchase.items) {
-        const inv = await prisma.inventory.findFirst({
-          where: { productId: item.productId, location: 'WAREHOUSE' },
-        });
+    for (const [productId, totalQty] of Object.entries(qtByProduct)) {
+      const inv = await prisma.inventory.findFirst({
+        where: { productId, location: 'WAREHOUSE' },
+      });
 
-        const itemQty = Number(item.quantity) || 0;
-
-        if (inv) {
-          if (inv.quantity !== itemQty) {
-            await prisma.inventory.update({
-              where: { id: inv.id },
-              data: { quantity: itemQty },
-            });
-            fixed++;
-          }
-        } else {
-          await prisma.inventory.create({
-            data: {
-              productId: item.productId,
-              quantity: itemQty,
-              location: 'WAREHOUSE',
-            },
+      if (inv) {
+        if (inv.quantity !== totalQty) {
+          await prisma.inventory.update({
+            where: { id: inv.id },
+            data: { quantity: totalQty },
           });
           fixed++;
         }
+      } else {
+        await prisma.inventory.create({
+          data: {
+            productId,
+            quantity: totalQty,
+            location: 'WAREHOUSE',
+          },
+        });
+        fixed++;
       }
     }
 
-    res.json({ message: `Fixed ${fixed} inventory records`, success: true });
+    res.json({ message: `Fixed ${fixed} inventory records with correct totals`, success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
