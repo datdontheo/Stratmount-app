@@ -36,7 +36,7 @@ router.get('/inventory-vs-purchases', async (req, res) => {
   }
 });
 
-router.post('/fix-inventory', async (req, res) => {
+router.get('/fix-inventory', async (req, res) => {
   try {
     const purchases = await prisma.purchase.findMany({
       include: { items: true },
