@@ -317,6 +317,13 @@ export default function PurchasesPage() {
 
   const fmt = (n) => (Number(n) || 0).toFixed(2);
 
+  const getErrorMessage = (err) => {
+    if (typeof err === 'string') return err;
+    if (typeof err?.message === 'string') return err.message;
+    if (typeof err?.response?.data?.error === 'string') return err.response.data.error;
+    return 'Unknown error';
+  };
+
   const save = useMutation({
     mutationFn: (data) => api.post('/purchases', data),
     onSuccess: () => {
@@ -330,7 +337,7 @@ export default function PurchasesPage() {
       setPurchaseDate(new Date().toISOString().slice(0, 10));
       setProductSearch(''); setProductCategory('All');
     },
-    onError: (err) => toast.error(typeof err === 'string' ? err : err?.error || 'Failed to save shipment'),
+    onError: (err) => toast.error(getErrorMessage(err) || 'Failed to save shipment'),
   });
 
   const update = useMutation({
@@ -342,7 +349,7 @@ export default function PurchasesPage() {
       qc.invalidateQueries({ queryKey: ['products'] });
       setEditingPurchase(null);
     },
-    onError: (err) => toast.error(typeof err === 'string' ? err : err?.error || 'Failed to update shipment'),
+    onError: (err) => toast.error(getErrorMessage(err) || 'Failed to update shipment'),
   });
 
   const deleteShipment = useMutation({
@@ -353,7 +360,7 @@ export default function PurchasesPage() {
       qc.invalidateQueries({ queryKey: ['inventory'] });
       qc.invalidateQueries({ queryKey: ['products'] });
     },
-    onError: (err) => toast.error(typeof err === 'string' ? err : err?.error || 'Failed to delete shipment'),
+    onError: (err) => toast.error(getErrorMessage(err) || 'Failed to delete shipment'),
   });
 
   const createProductFn = async (formData) => {
