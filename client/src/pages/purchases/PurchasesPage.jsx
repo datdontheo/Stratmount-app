@@ -189,7 +189,16 @@ export default function PurchasesPage() {
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/suppliers') });
   const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: () => api.get('/products') });
   const { data: history = [] } = useQuery({ queryKey: ['purchases'], queryFn: () => api.get('/purchases'), enabled: showHistory });
-  const { data: currentRates = {} } = useQuery({ queryKey: ['exchange-rates-current'], queryFn: () => api.get('/exchange-rates/current') });
+  const { data: currentRates = {} } = useQuery({
+    queryKey: ['exchange-rates-current'],
+    queryFn: async () => {
+      try {
+        return await api.get('/exchange-rates/current');
+      } catch (err) {
+        return {};
+      }
+    },
+  });
 
   const filteredProducts = (Array.isArray(products) ? products : []).filter((p) => {
     const matchesSearch = !productSearch ||
