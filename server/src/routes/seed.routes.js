@@ -1,13 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 router.get('/', async (req, res) => {
   try {
-    // Safety check — only run if no admin exists yet
     const existing = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
     if (existing) {
       return res.json({ message: 'Database already seeded. Nothing to do.', alreadySeeded: true });
@@ -117,14 +115,11 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/seed/clear — wipes all business data, keeps user accounts
-// Must send { confirmKey: "CLEAR_ALL_DATA" } in the request body
 router.post('/clear', async (req, res) => {
   if (req.body.confirmKey !== 'CLEAR_ALL_DATA') {
     return res.status(400).json({ error: 'Missing or incorrect confirmKey' });
   }
   try {
-    // Delete in dependency order so foreign keys don't block
     await prisma.payment.deleteMany();
     await prisma.saleItem.deleteMany();
     await prisma.sale.deleteMany();

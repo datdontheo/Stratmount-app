@@ -1,10 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireAdminOrWarehouse } = require('../middleware/role.middleware');
 
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 router.use(authenticate, requireAdminOrWarehouse);
 
@@ -79,19 +78,11 @@ router.post('/', async (req, res) => {
         const trueCostPerUnit = Number(item.trueCostPerUnit) || 0;
         const outletPrice = Number(item.outletPrice) || 0;
 
-        const existing = await tx.inventory.findFirst({
-          where: { productId: item.productId, location: 'WAREHOUSE' },
+        await tx.inventory.upsert({
+          where: { productId_location: { productId: item.productId, location: 'WAREHOUSE' } },
+          update: { quantity: { increment: qty } },
+          create: { productId: item.productId, quantity: qty, location: 'WAREHOUSE' },
         });
-        if (existing) {
-          await tx.inventory.update({
-            where: { id: existing.id },
-            data: { quantity: { increment: qty } },
-          });
-        } else {
-          await tx.inventory.create({
-            data: { productId: item.productId, quantity: qty, location: 'WAREHOUSE' },
-          });
-        }
 
         if (trueCostPerUnit > 0) {
           await tx.product.update({
@@ -139,15 +130,11 @@ router.put('/:id', async (req, res) => {
 
       // Reverse old inventory
       for (const oldItem of old.items) {
-        const inv = await tx.inventory.findFirst({
-          where: { productId: oldItem.productId, location: 'WAREHOUSE' },
+        await tx.inventory.upsert({
+          where: { productId_location: { productId: oldItem.productId, location: 'WAREHOUSE' } },
+          update: { quantity: { decrement: oldItem.quantity } },
+          create: { productId: oldItem.productId, quantity: 0, location: 'WAREHOUSE' },
         });
-        if (inv) {
-          await tx.inventory.update({
-            where: { id: inv.id },
-            data: { quantity: { decrement: oldItem.quantity } },
-          });
-        }
       }
 
       // Replace items
@@ -189,19 +176,11 @@ router.put('/:id', async (req, res) => {
           },
         });
 
-        const inv = await tx.inventory.findFirst({
-          where: { productId: item.productId, location: 'WAREHOUSE' },
+        await tx.inventory.upsert({
+          where: { productId_location: { productId: item.productId, location: 'WAREHOUSE' } },
+          update: { quantity: { increment: qty } },
+          create: { productId: item.productId, quantity: qty, location: 'WAREHOUSE' },
         });
-        if (inv) {
-          await tx.inventory.update({
-            where: { id: inv.id },
-            data: { quantity: { increment: qty } },
-          });
-        } else {
-          await tx.inventory.create({
-            data: { productId: item.productId, quantity: qty, location: 'WAREHOUSE' },
-          });
-        }
 
         if (trueCostPerUnit > 0) {
           await tx.product.update({
@@ -235,15 +214,11 @@ router.delete('/:id', async (req, res) => {
       if (!purchase) throw new Error('Purchase not found');
 
       for (const item of purchase.items) {
-        const inv = await tx.inventory.findFirst({
-          where: { productId: item.productId, location: 'WAREHOUSE' },
+        await tx.inventory.upsert({
+          where: { productId_location: { productId: item.productId, location: 'WAREHOUSE' } },
+          update: { quantity: { decrement: item.quantity } },
+          create: { productId: item.productId, quantity: 0, location: 'WAREHOUSE' },
         });
-        if (inv) {
-          await tx.inventory.update({
-            where: { id: inv.id },
-            data: { quantity: { decrement: item.quantity } },
-          });
-        }
       }
 
       await tx.purchaseItem.deleteMany({ where: { purchaseId: req.params.id } });

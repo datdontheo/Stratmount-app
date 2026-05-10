@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 router.get('/inventory-vs-purchases', async (req, res) => {
   try {
@@ -64,11 +63,7 @@ router.get('/fix-inventory', async (req, res) => {
         }
       } else {
         await prisma.inventory.create({
-          data: {
-            productId,
-            quantity: totalQty,
-            location: 'WAREHOUSE',
-          },
+          data: { productId, quantity: totalQty, location: 'WAREHOUSE' },
         });
         fixed++;
       }
