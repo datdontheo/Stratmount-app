@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import { formatCurrency, formatDate } from '../../utils/format';
-import { IconPlus, IconX, IconShoppingCart } from '../../components/ui/Icons';
+import { IconPlus, IconX, IconShoppingCart, IconEdit, IconTrash } from '../../components/ui/Icons';
 
 const CURRENCIES = ['GHS', 'AED', 'USD', 'GBP', 'EUR'];
 const CATEGORIES = ['All', 'PERFUME', 'GADGET', 'OTHER'];
@@ -168,6 +168,7 @@ function makeUpdateRow(setRows) {
 export default function PurchasesPage() {
   const qc = useQueryClient();
   const [showHistory, setShowHistory] = useState(true);
+  const [editingId, setEditingId] = useState(null);
 
   const [supplierId, setSupplierId] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -221,9 +222,12 @@ export default function PurchasesPage() {
   const fmt = (n) => (Number(n) || 0).toFixed(2);
 
   const save = useMutation({
-    mutationFn: (data) => api.post('/purchases', data),
+    mutationFn: (data) => editingId
+      ? api.put(`/purchases/${editingId}`, data)
+      : api.post('/purchases', data),
     onSuccess: () => {
-      toast.success('Shipment saved — inventory updated');
+      const msg = editingId ? 'Shipment updated — inventory adjusted' : 'Shipment saved — inventory updated';
+      toast.success(msg);
       qc.invalidateQueries({ queryKey: ['purchases'] });
       qc.invalidateQueries({ queryKey: ['inventory'] });
       qc.invalidateQueries({ queryKey: ['products'] });
@@ -232,9 +236,50 @@ export default function PurchasesPage() {
       setRows([emptyItem()]);
       setPurchaseDate(new Date().toISOString().slice(0, 10));
       setProductSearch(''); setProductCategory('All');
+      setEditingId(null);
     },
     onError: (err) => toast.error(typeof err === 'string' ? err : err?.error || 'Failed to save shipment'),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/purchases/${id}`),
+    onSuccess: () => {
+      toast.success('Shipment deleted — inventory reversed');
+      qc.invalidateQueries({ queryKey: ['purchases'] });
+      qc.invalidateQueries({ queryKey: ['inventory'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
+    },
+    onError: (err) => toast.error(typeof err === 'string' ? err : err?.error || 'Failed to delete shipment'),
+  });
+
+  const loadForEdit = (purchase) => {
+    setSupplierId(purchase.supplierId);
+    setInvoiceNumber(purchase.invoiceNumber || '');
+    setPurchaseDate(purchase.purchaseDate.split('T')[0]);
+    setCurrency(purchase.currency);
+    setExchangeRate(purchase.exchangeRate === 1 ? '' : String(purchase.exchangeRate));
+    setShippingCostGHS(purchase.shippingCostGHS || 0);
+    setNotes(purchase.notes || '');
+    setRows(purchase.items.map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+      unitCost: item.unitCost,
+      totalCost: item.totalCost,
+      profitMargin: item.profitMargin,
+    })));
+    setEditingId(purchase.id);
+    setShowHistory(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancel = () => {
+    setEditingId(null);
+    setSupplierId(''); setInvoiceNumber(''); setCurrency('GHS');
+    setExchangeRate(''); setShippingCostGHS(0); setNotes('');
+    setRows([emptyItem()]);
+    setPurchaseDate(new Date().toISOString().slice(0, 10));
+    setProductSearch(''); setProductCategory('All');
+  };
 
 
   const handleSave = () => {
@@ -249,6 +294,7 @@ export default function PurchasesPage() {
       intermediaryCurrency: null, intermediaryRate: null,
       shippingCostForeign: 0, shippingCostGHS: Number(shippingCostGHS),
       totalForeign, totalGHS, fxGainLoss: 0, notes,
+      ...(editingId ? {} : {}),
       items: computed.map((r) => ({
         productId: r.productId,
         quantity: Number(r.quantity),
@@ -408,10 +454,17 @@ export default function PurchasesPage() {
             <p className="text-text-primary font-bold text-lg">{rows.reduce((s, r) => s + (Number(r.quantity) || 0), 0)}</p>
           </div>
         </div>
-        <button onClick={handleSave} disabled={save.isPending} className="btn-primary w-full flex items-center justify-center gap-2">
-          <IconShoppingCart size={16} />
-          {save.isPending ? 'Saving...' : 'Save Shipment & Update Inventory'}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleSave} disabled={save.isPending} className="btn-primary flex-1 flex items-center justify-center gap-2">
+            <IconShoppingCart size={16} />
+            {save.isPending ? 'Saving...' : editingId ? 'Update Shipment' : 'Save Shipment & Update Inventory'}
+          </button>
+          {editingId && (
+            <button onClick={handleCancel} className="btn-secondary px-6">
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Shipment History */}
@@ -432,6 +485,7 @@ export default function PurchasesPage() {
                   <th className="th">Total (GHS)</th>
                   <th className="th">Shipping (GHS)</th>
                   <th className="th">Items</th>
+                  <th className="th">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -444,10 +498,33 @@ export default function PurchasesPage() {
                     <td className="td font-medium">{safe(formatCurrency(p?.totalGHS || 0))}</td>
                     <td className="td">{safe(formatCurrency(p?.shippingCostGHS || 0))}</td>
                     <td className="td text-text-secondary">{safe(p?.items?.length || 0)} item{p?.items?.length !== 1 ? 's' : ''}</td>
+                    <td className="td">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => loadForEdit(p)}
+                          className="text-accent hover:text-accent-hover transition-colors p-1"
+                          title="Edit shipment"
+                        >
+                          <IconEdit size={16} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm('Delete this shipment and reverse inventory?')) {
+                              deleteMutation.mutate(p.id);
+                            }
+                          }}
+                          disabled={deleteMutation.isPending}
+                          className="text-danger hover:text-danger-hover transition-colors p-1"
+                          title="Delete shipment"
+                        >
+                          <IconTrash size={16} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {!history?.length && (
-                  <tr><td colSpan={7} className="td text-center text-text-tertiary py-6">No shipments recorded yet</td></tr>
+                  <tr><td colSpan={8} className="td text-center text-text-tertiary py-6">No shipments recorded yet</td></tr>
                 )}
               </tbody>
             </table>
