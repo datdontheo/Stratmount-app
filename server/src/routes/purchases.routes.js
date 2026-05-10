@@ -135,6 +135,8 @@ router.put('/:id', async (req, res) => {
       });
       if (!old) throw new Error('Purchase not found');
 
+
+      // Reverse old inventory
       for (const oldItem of old.items) {
         const inv = await tx.inventory.findFirst({
           where: { productId: oldItem.productId, location: 'WAREHOUSE' },
@@ -147,6 +149,7 @@ router.put('/:id', async (req, res) => {
         }
       }
 
+      // Replace items
       await tx.purchaseItem.deleteMany({ where: { purchaseId: req.params.id } });
 
       await tx.purchase.update({

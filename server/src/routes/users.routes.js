@@ -2,12 +2,11 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireAdmin } = require('../middleware/role.middleware');
 
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 const uploadDir = process.env.NODE_ENV === 'production'
   ? '/tmp'

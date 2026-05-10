@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 router.get('/', async (req, res) => {
   try {
