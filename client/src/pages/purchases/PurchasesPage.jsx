@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import { formatCurrency, formatDate } from '../../utils/format';
-import { IconPlus, IconX, IconShoppingCart } from '../../components/ui/Icons';
+import { IconPlus, IconX, IconShoppingCart, IconEdit, IconTrash } from '../../components/ui/Icons';
 
 const CURRENCIES = ['GHS', 'AED', 'USD', 'GBP', 'EUR'];
 const CATEGORIES = ['All', 'PERFUME', 'GADGET', 'OTHER'];
@@ -336,9 +336,12 @@ export default function PurchasesPage() {
   const fmt = (n) => (Number(n) || 0).toFixed(2);
 
   const save = useMutation({
-    mutationFn: (data) => api.post('/purchases', data),
+    mutationFn: (data) => editingId
+      ? api.put(`/purchases/${editingId}`, data)
+      : api.post('/purchases', data),
     onSuccess: () => {
-      toast.success('Shipment saved — inventory updated');
+      const msg = editingId ? 'Shipment updated — inventory adjusted' : 'Shipment saved — inventory updated';
+      toast.success(msg);
       qc.invalidateQueries({ queryKey: ['purchases'] });
       qc.invalidateQueries({ queryKey: ['inventory'] });
       qc.invalidateQueries({ queryKey: ['products'] });
@@ -347,6 +350,7 @@ export default function PurchasesPage() {
       setRows([emptyItem()]);
       setPurchaseDate(new Date().toISOString().slice(0, 10));
       setProductSearch(''); setProductCategory('All');
+      setEditingId(null);
     },
     onError: (err) => toast.error(typeof err === 'string' ? err : err?.error || 'Failed to save shipment'),
   });
@@ -386,6 +390,7 @@ export default function PurchasesPage() {
       intermediaryCurrency: null, intermediaryRate: null,
       shippingCostForeign: 0, shippingCostGHS: Number(shippingCostGHS),
       totalForeign, totalGHS, fxGainLoss: 0, notes,
+      ...(editingId ? {} : {}),
       items: computed.map((r) => ({
         productId: r.productId,
         quantity: Number(r.quantity),
@@ -544,10 +549,17 @@ export default function PurchasesPage() {
             <p className="text-text-primary font-bold text-lg">{rows.reduce((s, r) => s + (Number(r.quantity) || 0), 0)}</p>
           </div>
         </div>
-        <button onClick={handleSave} disabled={save.isPending} className="btn-primary w-full flex items-center justify-center gap-2">
-          <IconShoppingCart size={16} />
-          {save.isPending ? 'Saving...' : 'Save Shipment & Update Inventory'}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleSave} disabled={save.isPending} className="btn-primary flex-1 flex items-center justify-center gap-2">
+            <IconShoppingCart size={16} />
+            {save.isPending ? 'Saving...' : editingId ? 'Update Shipment' : 'Save Shipment & Update Inventory'}
+          </button>
+          {editingId && (
+            <button onClick={handleCancel} className="btn-secondary px-6">
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Shipment History */}

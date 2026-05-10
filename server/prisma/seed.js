@@ -4,7 +4,17 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding database...');
+  // ⚠️ WARNING: This script adds SAMPLE DATA for LOCAL DEVELOPMENT ONLY
+  // DO NOT run this on production Supabase - it will overwrite your real business data!
+
+  if (process.env.NODE_ENV === 'production') {
+    console.error('❌ ERROR: Cannot seed production database!');
+    console.error('This script is for LOCAL DEVELOPMENT ONLY');
+    console.error('Running this on Supabase would DELETE your real business data!');
+    process.exit(1);
+  }
+
+  console.log('Seeding database with SAMPLE DATA for development...');
 
   // Users
   const adminPassword = await bcrypt.hash('admin123', 12);

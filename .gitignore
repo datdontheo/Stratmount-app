@@ -8,3 +8,6 @@ build/
 .DS_Store
 server/uploads/*
 !server/uploads/.gitkeep
+server/prisma/*.db
+server/prisma/*.db-shm
+server/prisma/*.db-wal
