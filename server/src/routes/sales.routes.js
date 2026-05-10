@@ -81,7 +81,9 @@ router.post('/', async (req, res) => {
 
     const location = req.user.role === 'OUTLET' ? `OUTLET_${req.user.id}` : 'WAREHOUSE';
     for (const item of items) {
-      const inv = await prisma.inventory.findFirst({ where: { productId: item.productId, location } });
+      const inv = await prisma.inventory.findUnique({
+        where: { productId_location: { productId: item.productId, location } },
+      });
       if (!inv || inv.quantity < item.quantity) {
         const product = await prisma.product.findUnique({ where: { id: item.productId }, select: { name: true } });
         return res.status(400).json({ error: `Insufficient stock for "${product?.name || 'a product'}"` });
@@ -117,13 +119,11 @@ router.post('/', async (req, res) => {
     });
 
     for (const item of items) {
-      const inv = await prisma.inventory.findFirst({ where: { productId: item.productId, location } });
-      if (inv) {
-        await prisma.inventory.update({
-          where: { id: inv.id },
-          data: { quantity: { decrement: item.quantity } },
-        });
-      }
+      await prisma.inventory.upsert({
+        where: { productId_location: { productId: item.productId, location } },
+        update: { quantity: { decrement: item.quantity } },
+        create: { productId: item.productId, quantity: 0, location },
+      });
     }
 
     res.status(201).json(sale);
@@ -165,12 +165,11 @@ router.post('/:id/return', async (req, res) => {
         if (!saleItem) continue;
         const qty = Math.min(ri.quantity, saleItem.quantity);
         const location = sale.soldBy?.role === 'OUTLET' ? `OUTLET_${sale.soldBy.id}` : 'WAREHOUSE';
-        const inv = await tx.inventory.findFirst({ where: { productId: saleItem.productId, location } });
-        if (inv) {
-          await tx.inventory.update({ where: { id: inv.id }, data: { quantity: { increment: qty } } });
-        } else {
-          await tx.inventory.create({ data: { productId: saleItem.productId, quantity: qty, location } });
-        }
+        await tx.inventory.upsert({
+          where: { productId_location: { productId: saleItem.productId, location } },
+          update: { quantity: { increment: qty } },
+          create: { productId: saleItem.productId, quantity: qty, location },
+        });
       }
 
       const refundAmount = (returnedItems
