@@ -66,7 +66,6 @@ router.post('/', async (req, res) => {
       include: { paidBy: { select: { id: true, name: true } }, sale: true },
     });
 
-    // Update sale balance if linked
     if (saleId) {
       const sale = await prisma.sale.findUnique({ where: { id: saleId } });
       if (sale) {

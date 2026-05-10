@@ -30,8 +30,6 @@ const upload = multer({
   },
 });
 
-// ── Self-service endpoints (any authenticated user) ──────────────────────────
-
 router.get('/me', authenticate, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
@@ -66,8 +64,6 @@ router.post('/upload-logo', authenticate, upload.single('logo'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   res.json({ url: `/uploads/${req.file.filename}` });
 });
-
-// ── Admin-only endpoints ─────────────────────────────────────────────────────
 
 router.get('/', authenticate, requireAdmin, async (req, res) => {
   try {

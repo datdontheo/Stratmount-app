@@ -63,11 +63,7 @@ router.get('/fix-inventory', async (req, res) => {
         }
       } else {
         await prisma.inventory.create({
-          data: {
-            productId,
-            quantity: totalQty,
-            location: 'WAREHOUSE',
-          },
+          data: { productId, quantity: totalQty, location: 'WAREHOUSE' },
         });
         fixed++;
       }

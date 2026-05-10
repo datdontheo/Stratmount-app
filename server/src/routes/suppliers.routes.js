@@ -70,4 +70,4 @@ router.get('/:id/purchases', async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = exports = router;

@@ -87,7 +87,6 @@ router.post('/assign', requireAdminOrWarehouse, async (req, res) => {
     const toUser = await prisma.user.findUnique({ where: { id: toUserId } });
     if (!toUser) return res.status(404).json({ error: 'User not found' });
 
-    // Deduct from warehouse
     const warehouseInv = await prisma.inventory.findFirst({
       where: { productId, location: 'WAREHOUSE' },
     });
@@ -100,7 +99,6 @@ router.post('/assign', requireAdminOrWarehouse, async (req, res) => {
       data: { quantity: { decrement: quantity } },
     });
 
-    // Add to outlet
     const outletLocation = `OUTLET_${toUserId}`;
     const existing = await prisma.inventory.findFirst({
       where: { productId, location: outletLocation },
@@ -127,7 +125,6 @@ router.post('/assign', requireAdminOrWarehouse, async (req, res) => {
   }
 });
 
-// Return stock from outlet back to warehouse
 router.post('/return', requireAdminOrWarehouse, async (req, res) => {
   try {
     const { productId, fromUserId, quantity, notes } = req.body;
@@ -168,7 +165,6 @@ router.post('/return', requireAdminOrWarehouse, async (req, res) => {
   }
 });
 
-// Write off stock (damaged / lost / adjustment)
 router.post('/writeoff', requireAdminOrWarehouse, async (req, res) => {
   try {
     const { productId, location, quantity, reason } = req.body;
