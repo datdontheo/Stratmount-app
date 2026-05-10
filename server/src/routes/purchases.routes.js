@@ -1,10 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireAdminOrWarehouse } = require('../middleware/role.middleware');
 
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 router.use(authenticate, requireAdminOrWarehouse);
 
@@ -136,8 +135,6 @@ router.put('/:id', async (req, res) => {
       });
       if (!old) throw new Error('Purchase not found');
 
-
-      // Reverse old inventory
       for (const oldItem of old.items) {
         const inv = await tx.inventory.findFirst({
           where: { productId: oldItem.productId, location: 'WAREHOUSE' },
@@ -150,7 +147,6 @@ router.put('/:id', async (req, res) => {
         }
       }
 
-      // Replace items
       await tx.purchaseItem.deleteMany({ where: { purchaseId: req.params.id } });
 
       await tx.purchase.update({

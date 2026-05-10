@@ -1,10 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireAdmin } = require('../middleware/role.middleware');
 
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 router.use(authenticate);
 
@@ -28,7 +27,6 @@ router.get('/current', async (req, res) => {
       });
       current[c] = rate ? rate.rate : 1;
     }
-    // AED→USD intermediary rate
     const aedUsd = await prisma.exchangeRate.findFirst({
       where: { fromCurrency: 'AED', toCurrency: 'USD' },
       orderBy: { date: 'desc' },
