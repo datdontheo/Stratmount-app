@@ -9,7 +9,6 @@ const CURRENCIES = ['GHS', 'AED', 'USD', 'GBP', 'EUR'];
 const CATEGORIES = ['All', 'PERFUME', 'GADGET', 'OTHER'];
 const DEFAULT_MARGIN = 20;
 
-// Safe render: never let a non-primitive escape into JSX
 const safe = (v) => {
   if (v === null || v === undefined) return '';
   if (typeof v === 'string' || typeof v === 'number') return v;
@@ -165,9 +164,132 @@ function makeUpdateRow(setRows) {
   };
 }
 
+function EditModal({ purchase, suppliers, products, onClose, onSave, isSaving }) {
+  const [supplierId, setSupplierId] = useState(purchase.supplierId);
+  const [invoiceNumber, setInvoiceNumber] = useState(purchase.invoiceNumber || '');
+  const [purchaseDate, setPurchaseDate] = useState(purchase.purchaseDate?.slice(0, 10) || '');
+  const [currency, setCurrency] = useState(purchase.currency || 'GHS');
+  const [exchangeRate, setExchangeRate] = useState(String(purchase.exchangeRate || 1));
+  const [shippingCostGHS, setShippingCostGHS] = useState(purchase.shippingCostGHS || 0);
+  const [notes, setNotes] = useState(purchase.notes || '');
+  const [rows, setRows] = useState(
+    (purchase.items || []).map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+      unitCost: item.unitCost,
+      totalCost: item.totalCost,
+      profitMargin: item.profitMargin ?? DEFAULT_MARGIN,
+      _shippingOverride: item.shippingAllocated,
+    }))
+  );
+
+  const effectiveRate = currency === 'GHS' ? 1 : (Number(exchangeRate) || 0);
+  const computed = calcItems(rows, effectiveRate, Number(shippingCostGHS));
+  const totalForeign = rows.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.unitCost) || 0), 0);
+  const totalGHS = computed.reduce((s, r) => s + r.lineTotalGHS, 0);
+  const grandTotal = totalGHS + Number(shippingCostGHS);
+  const updateRow = makeUpdateRow(setRows);
+  const fmt = (n) => (Number(n) || 0).toFixed(2);
+
+  const handleSave = () => {
+    if (!supplierId) return toast.error('Select a supplier');
+    if (rows.some((r) => !r.productId)) return toast.error('Select a product for each row');
+    onSave({
+      supplierId, invoiceNumber, purchaseDate, currency,
+      exchangeRate: currency === 'GHS' ? 1 : Number(exchangeRate),
+      shippingCostGHS: Number(shippingCostGHS),
+      totalForeign, totalGHS, fxGainLoss: 0, notes,
+      items: computed.map((r) => ({
+        productId: r.productId,
+        quantity: Number(r.quantity),
+        unitCost: Number(r.unitCost),
+        unitCostGHS: r.unitCostGHS,
+        shippingAllocated: r.shippingAllocated,
+        trueCostPerUnit: r.trueCostPerUnit,
+        profitMargin: Number(r.profitMargin),
+        outletPrice: r.outletPrice,
+      })),
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+      <div className="bg-bg-primary rounded-xl shadow-xl w-full max-w-5xl m-4 my-8 space-y-4 p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="font-heading font-bold text-xl text-text-primary">Edit Shipment</h2>
+          <button onClick={onClose} className="text-text-tertiary hover:text-text-primary transition-colors"><IconX size={20} /></button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label className="label">Supplier</label>
+            <select className="input" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
+              <option value="">Select supplier</option>
+              {(suppliers || []).map((sup) => <option key={sup.id} value={sup.id}>{safe(sup.name)} ({safe(sup.country)})</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Invoice #</label>
+            <input className="input" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder="INV-001" />
+          </div>
+          <div>
+            <label className="label">Date</label>
+            <input type="date" className="input" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Currency</label>
+            <select className="input" value={currency} onChange={(e) => { setCurrency(e.target.value); setExchangeRate(''); }}>
+              {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          {currency !== 'GHS' && (
+            <div>
+              <label className="label">{currency} → GHS Rate</label>
+              <input type="number" step="0.01" className="input" value={exchangeRate} onChange={(e) => setExchangeRate(e.target.value)} />
+            </div>
+          )}
+          <div>
+            <label className="label">Shipping Cost (GHS)</label>
+            <input type="number" step="0.01" min={0} className="input" value={shippingCostGHS} onChange={(e) => setShippingCostGHS(Math.max(0, +e.target.value))} />
+          </div>
+          <div className="sm:col-span-2 lg:col-span-3">
+            <label className="label">Notes</label>
+            <input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+        </div>
+
+        <ItemsTable
+          rows={rows} computed={computed} currency={currency}
+          onUpdate={updateRow}
+          onAdd={() => setRows((prev) => [...prev, emptyItem()])}
+          onRemove={(i) => setRows((prev) => prev.filter((_, idx) => idx !== i))}
+          productList={products || []}
+          allProductList={products || []}
+          shippingTotal={shippingCostGHS}
+          allRows={rows}
+        />
+
+        <div className="flex items-center justify-between pt-2 border-t border-border">
+          <div className="text-sm text-text-secondary">
+            Grand Total: <span className="font-bold text-text-primary">{formatCurrency(grandTotal)}</span>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="btn-secondary">Cancel</button>
+            <button onClick={handleSave} disabled={isSaving} className="btn-primary">
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PurchasesPage() {
   const qc = useQueryClient();
   const [showHistory, setShowHistory] = useState(true);
+  const [editingPurchase, setEditingPurchase] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const [supplierId, setSupplierId] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -178,7 +300,6 @@ export default function PurchasesPage() {
   const [notes, setNotes] = useState('');
   const [rows, setRows] = useState([emptyItem()]);
 
-
   const [productSearch, setProductSearch] = useState('');
   const [productCategory, setProductCategory] = useState('All');
 
@@ -188,11 +309,7 @@ export default function PurchasesPage() {
   const { data: currentRates = {} } = useQuery({
     queryKey: ['exchange-rates-current'],
     queryFn: async () => {
-      try {
-        return await api.get('/exchange-rates/current');
-      } catch (err) {
-        return {};
-      }
+      try { return await api.get('/exchange-rates/current'); } catch { return {}; }
     },
   });
 
@@ -211,13 +328,11 @@ export default function PurchasesPage() {
   const totalGHS = computed.reduce((s, r) => s + r.lineTotalGHS, 0);
   const grandTotal = totalGHS + Number(shippingCostGHS);
 
-  // Shipping remaining counters — computed here to avoid IIFEs in JSX
   const newShippingAllocated = rows.reduce((s, r) => r._shippingOverride !== undefined ? s + r._shippingOverride : s, 0);
   const newShippingRemaining = (Number(shippingCostGHS) || 0) - newShippingAllocated;
   const newHasOverride = rows.some((r) => r._shippingOverride !== undefined);
 
   const updateRow = makeUpdateRow(setRows);
-
   const fmt = (n) => (Number(n) || 0).toFixed(2);
 
   const save = useMutation({
@@ -236,6 +351,28 @@ export default function PurchasesPage() {
     onError: (err) => toast.error(typeof err === 'string' ? err : err?.error || 'Failed to save shipment'),
   });
 
+  const update = useMutation({
+    mutationFn: ({ id, data }) => api.put(`/purchases/${id}`, data),
+    onSuccess: () => {
+      toast.success('Shipment updated — inventory adjusted');
+      qc.invalidateQueries({ queryKey: ['purchases'] });
+      qc.invalidateQueries({ queryKey: ['inventory'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
+      setEditingPurchase(null);
+    },
+    onError: (err) => toast.error(typeof err === 'string' ? err : err?.error || 'Failed to update shipment'),
+  });
+
+  const remove = useMutation({
+    mutationFn: (id) => api.delete(`/purchases/${id}`),
+    onSuccess: () => {
+      toast.success('Shipment deleted — inventory reversed');
+      qc.invalidateQueries({ queryKey: ['purchases'] });
+      qc.invalidateQueries({ queryKey: ['inventory'] });
+      setDeletingId(null);
+    },
+    onError: (err) => toast.error(typeof err === 'string' ? err : err?.error || 'Failed to delete shipment'),
+  });
 
   const handleSave = () => {
     if (!supplierId) return toast.error('Select a supplier');
@@ -261,7 +398,6 @@ export default function PurchasesPage() {
       })),
     });
   };
-
 
   if (!Array.isArray(products) || !Array.isArray(suppliers) || !Array.isArray(history)) {
     return (
@@ -432,22 +568,60 @@ export default function PurchasesPage() {
                   <th className="th">Total (GHS)</th>
                   <th className="th">Shipping (GHS)</th>
                   <th className="th">Items</th>
+                  <th className="th"></th>
                 </tr>
               </thead>
               <tbody>
                 {(history || []).map((p) => (
-                  <tr key={p?.id} className="table-row">
-                    <td className="td">{safe(formatDate(p?.purchaseDate))}</td>
-                    <td className="td font-medium">{safe(p?.supplier?.name)}</td>
-                    <td className="td text-text-secondary">{safe(p?.invoiceNumber) || '—'}</td>
-                    <td className="td">{safe(p?.currency)}</td>
-                    <td className="td font-medium">{safe(formatCurrency(p?.totalGHS || 0))}</td>
-                    <td className="td">{safe(formatCurrency(p?.shippingCostGHS || 0))}</td>
-                    <td className="td text-text-secondary">{safe(p?.items?.length || 0)} item{p?.items?.length !== 1 ? 's' : ''}</td>
-                  </tr>
+                  <Fragment key={p?.id}>
+                    <tr className="table-row">
+                      <td className="td">{safe(formatDate(p?.purchaseDate))}</td>
+                      <td className="td font-medium">{safe(p?.supplier?.name)}</td>
+                      <td className="td text-text-secondary">{safe(p?.invoiceNumber) || '—'}</td>
+                      <td className="td">{safe(p?.currency)}</td>
+                      <td className="td font-medium">{safe(formatCurrency(p?.totalGHS || 0))}</td>
+                      <td className="td">{safe(formatCurrency(p?.shippingCostGHS || 0))}</td>
+                      <td className="td text-text-secondary">{safe(p?.items?.length || 0)} item{p?.items?.length !== 1 ? 's' : ''}</td>
+                      <td className="td">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setEditingPurchase(p)}
+                            className="text-xs px-2 py-1 rounded bg-bg-tertiary text-text-secondary hover:text-text-primary transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => setDeletingId(p.id)}
+                            className="text-xs px-2 py-1 rounded bg-bg-tertiary text-danger hover:bg-danger hover:text-white transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {deletingId === p.id && (
+                      <tr>
+                        <td colSpan={8} className="td bg-bg-secondary">
+                          <div className="flex items-center justify-between py-1">
+                            <span className="text-text-secondary text-xs">Delete this shipment? Inventory will be reversed.</span>
+                            <div className="flex gap-2">
+                              <button onClick={() => setDeletingId(null)} className="text-xs px-3 py-1 rounded bg-bg-tertiary text-text-secondary hover:text-text-primary transition-colors">Cancel</button>
+                              <button
+                                onClick={() => remove.mutate(p.id)}
+                                disabled={remove.isPending}
+                                className="text-xs px-3 py-1 rounded bg-danger text-white hover:opacity-90 transition-opacity"
+                              >
+                                {remove.isPending ? 'Deleting...' : 'Confirm Delete'}
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
                 {!history?.length && (
-                  <tr><td colSpan={7} className="td text-center text-text-tertiary py-6">No shipments recorded yet</td></tr>
+                  <tr><td colSpan={8} className="td text-center text-text-tertiary py-6">No shipments recorded yet</td></tr>
                 )}
               </tbody>
             </table>
@@ -455,6 +629,17 @@ export default function PurchasesPage() {
         )}
       </div>
 
+      {/* Edit Modal */}
+      {editingPurchase && (
+        <EditModal
+          purchase={editingPurchase}
+          suppliers={suppliers}
+          products={products}
+          onClose={() => setEditingPurchase(null)}
+          onSave={(data) => update.mutate({ id: editingPurchase.id, data })}
+          isSaving={update.isPending}
+        />
+      )}
     </div>
   );
 }

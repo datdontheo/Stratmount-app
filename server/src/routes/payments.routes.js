@@ -2,10 +2,9 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const { PrismaClient } = require('@prisma/client');
 const { authenticate } = require('../middleware/auth.middleware');
 
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 const uploadDir = process.env.NODE_ENV === 'production'
   ? '/tmp'
@@ -67,7 +66,6 @@ router.post('/', async (req, res) => {
       include: { paidBy: { select: { id: true, name: true } }, sale: true },
     });
 
-    // Update sale balance if linked
     if (saleId) {
       const sale = await prisma.sale.findUnique({ where: { id: saleId } });
       if (sale) {

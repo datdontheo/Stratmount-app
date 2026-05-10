@@ -1,10 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireAdminOrWarehouse, requireAdmin } = require('../middleware/role.middleware');
 
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 router.use(authenticate);
 
@@ -80,6 +79,18 @@ router.post('/assign', requireAdminOrWarehouse, async (req, res) => {
     const toUser = await prisma.user.findUnique({ where: { id: toUserId } });
     if (!toUser) return res.status(404).json({ error: 'User not found' });
 
+    const warehouseInv = await prisma.inventory.findFirst({
+      where: { productId, location: 'WAREHOUSE' },
+    });
+    if (!warehouseInv || warehouseInv.quantity < quantity) {
+      return res.status(400).json({ error: 'Insufficient warehouse stock' });
+    }
+
+    await prisma.inventory.update({
+      where: { id: warehouseInv.id },
+      data: { quantity: { decrement: quantity } },
+    });
+
     const outletLocation = `OUTLET_${toUserId}`;
 
     await prisma.$transaction(async (tx) => {
@@ -113,7 +124,6 @@ router.post('/assign', requireAdminOrWarehouse, async (req, res) => {
   }
 });
 
-// Return stock from outlet back to warehouse
 router.post('/return', requireAdminOrWarehouse, async (req, res) => {
   try {
     const { productId, fromUserId, quantity, notes } = req.body;
@@ -150,7 +160,6 @@ router.post('/return', requireAdminOrWarehouse, async (req, res) => {
   }
 });
 
-// Write off stock (damaged / lost / adjustment)
 router.post('/writeoff', requireAdminOrWarehouse, async (req, res) => {
   try {
     const { productId, location, quantity, reason } = req.body;

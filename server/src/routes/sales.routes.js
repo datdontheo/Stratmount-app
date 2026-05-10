@@ -1,11 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireAdmin } = require('../middleware/role.middleware');
 const PDFDocument = require('pdfkit');
 
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 router.use(authenticate);
 
@@ -80,7 +79,6 @@ router.post('/', async (req, res) => {
     const balance = totalAmount - paid;
     const status = balance <= 0 ? 'PAID' : paid > 0 ? 'PARTIAL' : 'PENDING';
 
-    // Validate stock before creating sale
     const location = req.user.role === 'OUTLET' ? `OUTLET_${req.user.id}` : 'WAREHOUSE';
     for (const item of items) {
       const inv = await prisma.inventory.findUnique({
@@ -120,7 +118,6 @@ router.post('/', async (req, res) => {
       },
     });
 
-    // Deduct from inventory
     for (const item of items) {
       await prisma.inventory.upsert({
         where: { productId_location: { productId: item.productId, location } },
@@ -248,7 +245,6 @@ router.get('/:id/pdf', async (req, res) => {
     const fmt = (n) => `GH₵ ${(Number(n) || 0).toFixed(2)}`;
     const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-    // Header with logo
     if (appLogo && appLogo.startsWith('/uploads/')) {
       try {
         const path = require('path');
@@ -256,9 +252,7 @@ router.get('/:id/pdf', async (req, res) => {
         const logoPath = appLogo.replace('/uploads/', '');
         doc.image(path.join(uploadDir, logoPath), { fit: [100, 50], align: 'center' });
         doc.moveDown(0.3);
-      } catch (err) {
-        // Logo file not found, skip
-      }
+      } catch (err) {}
     }
     doc.fontSize(16).font('Helvetica-Bold').text(companyName.toUpperCase(), { align: 'center' });
     doc.fontSize(9).font('Helvetica').fillColor('#666').text('Sales Receipt', { align: 'center' });
@@ -266,7 +260,6 @@ router.get('/:id/pdf', async (req, res) => {
     doc.moveTo(30, doc.y).lineTo(370, doc.y).strokeColor('#ddd').stroke();
     doc.moveDown(0.5);
 
-    // Receipt meta
     doc.fillColor('#000').fontSize(9);
     doc.text(`Receipt #: ${receiptId}`, 30);
     doc.text(`Date: ${fmtDate(sale.saleDate)}`, 30);
@@ -277,7 +270,6 @@ router.get('/:id/pdf', async (req, res) => {
     doc.moveTo(30, doc.y).lineTo(370, doc.y).strokeColor('#ddd').stroke();
     doc.moveDown(0.5);
 
-    // Items header
     doc.font('Helvetica-Bold').fontSize(8);
     doc.text('Item', 30, doc.y, { width: 160 });
     doc.text('Qty', 200, doc.y - doc.currentLineHeight(), { width: 40, align: 'right' });
@@ -287,7 +279,6 @@ router.get('/:id/pdf', async (req, res) => {
     doc.moveTo(30, doc.y).lineTo(370, doc.y).strokeColor('#ddd').stroke();
     doc.moveDown(0.3);
 
-    // Items
     doc.font('Helvetica').fontSize(9);
     for (const item of sale.items) {
       const y = doc.y;
@@ -302,7 +293,6 @@ router.get('/:id/pdf', async (req, res) => {
     doc.moveTo(30, doc.y).lineTo(370, doc.y).strokeColor('#ddd').stroke();
     doc.moveDown(0.5);
 
-    // Totals
     const totY = doc.y;
     doc.fontSize(9);
     doc.text('Subtotal:', 200, totY, { width: 100 });
@@ -319,9 +309,7 @@ router.get('/:id/pdf', async (req, res) => {
     doc.moveTo(30, doc.y).lineTo(370, doc.y).strokeColor('#ddd').stroke();
     doc.moveDown(0.5);
 
-    // Status
-    doc.font('Helvetica').fontSize(9).fillColor('#666')
-      .text(`Status: ${sale.status}`, { align: 'center' });
+    doc.font('Helvetica').fontSize(9).fillColor('#666').text(`Status: ${sale.status}`, { align: 'center' });
     if (sale.notes) doc.text(`Notes: ${sale.notes}`, { align: 'center' });
     doc.moveDown(1);
     doc.fontSize(8).text('Thank you for your business!', { align: 'center' });

@@ -6,6 +6,12 @@ process.env.NODE_ENV   = process.env.NODE_ENV   || 'production';
 
 require('dotenv').config();
 
+// Prevent "prepared statement already exists" errors in Vercel serverless
+if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('pgbouncer')) {
+  const sep = process.env.DATABASE_URL.includes('?') ? '&' : '?';
+  process.env.DATABASE_URL += `${sep}pgbouncer=true&connection_limit=1`;
+}
+
 let _ready = false;
 
 async function ensureReady() {
