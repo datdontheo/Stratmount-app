@@ -6,8 +6,14 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': { target: 'http://localhost:3001', changeOrigin: true },
-      '/uploads': { target: 'http://localhost:3001', changeOrigin: true },
+      '/api': {
+        target: process.env.API_URL || 'http://localhost:53828',
+        changeOrigin: true
+      },
+      '/uploads': {
+        target: process.env.API_URL || 'http://localhost:53828',
+        changeOrigin: true
+      },
     },
   },
 });
