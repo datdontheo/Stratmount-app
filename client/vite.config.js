@@ -7,11 +7,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: process.env.API_URL || 'http://localhost:53828',
+        target: process.env.API_URL || 'http://localhost:55427',
         changeOrigin: true
       },
       '/uploads': {
-        target: process.env.API_URL || 'http://localhost:53828',
+        target: process.env.API_URL || 'http://localhost:55427',
         changeOrigin: true
       },
     },

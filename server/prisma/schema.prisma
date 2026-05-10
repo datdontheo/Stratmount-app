@@ -4,20 +4,19 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      Role     @default(OUTLET)
-  isActive  Boolean  @default(true)
-  mustChangePassword Boolean @default(false)
-  createdAt DateTime @default(now())
+  id                 String   @id @default(cuid())
+  name               String
+  email              String   @unique
+  password           String
+  role               String   @default("OUTLET")
+  isActive           Boolean  @default(true)
+  mustChangePassword Boolean  @default(false)
+  createdAt          DateTime @default(now())
 
   companyName   String?
   companyLogo   String?
@@ -28,17 +27,11 @@ model User {
   sales             Sale[]
 }
 
-enum Role {
-  ADMIN
-  WAREHOUSE
-  OUTLET
-}
-
 model Product {
   id           String   @id @default(cuid())
   name         String
   sku          String   @unique
-  category     Category @default(PERFUME)
+  category     String   @default("PERFUME")
   brand        String?
   description  String?
   unit         String   @default("bottle")
@@ -50,12 +43,6 @@ model Product {
   inventory     Inventory[]
   saleItems     SaleItem[]
   purchaseItems PurchaseItem[]
-}
-
-enum Category {
-  PERFUME
-  GADGET
-  OTHER
 }
 
 model Inventory {
@@ -100,19 +87,19 @@ model Purchase {
 }
 
 model PurchaseItem {
-  id               String   @id @default(cuid())
-  purchaseId       String
-  purchase         Purchase @relation(fields: [purchaseId], references: [id])
-  productId        String
-  product          Product  @relation(fields: [productId], references: [id])
-  quantity         Int
-  unitCost         Float
-  totalCost        Float
-  unitCostGHS      Float    @default(0)
-  shippingAllocated Float   @default(0)
-  trueCostPerUnit  Float    @default(0)
-  profitMargin     Float    @default(20)
-  outletPrice      Float    @default(0)
+  id                String   @id @default(cuid())
+  purchaseId        String
+  purchase          Purchase @relation(fields: [purchaseId], references: [id])
+  productId         String
+  product           Product  @relation(fields: [productId], references: [id])
+  quantity          Int
+  unitCost          Float
+  totalCost         Float
+  unitCostGHS       Float    @default(0)
+  shippingAllocated Float    @default(0)
+  trueCostPerUnit   Float    @default(0)
+  profitMargin      Float    @default(20)
+  outletPrice       Float    @default(0)
 }
 
 model Supplier {
@@ -139,29 +126,22 @@ model Customer {
 }
 
 model Sale {
-  id          String     @id @default(cuid())
+  id          String    @id @default(cuid())
   customerId  String?
-  customer    Customer?  @relation(fields: [customerId], references: [id])
+  customer    Customer? @relation(fields: [customerId], references: [id])
   soldById    String
-  soldBy      User       @relation(fields: [soldById], references: [id])
-  saleDate    DateTime   @default(now())
+  soldBy      User      @relation(fields: [soldById], references: [id])
+  saleDate    DateTime  @default(now())
   totalAmount Float
-  amountPaid  Float      @default(0)
-  balance     Float      @default(0)
-  currency    String     @default("GHS")
-  status      SaleStatus @default(PENDING)
+  amountPaid  Float     @default(0)
+  balance     Float     @default(0)
+  currency    String    @default("GHS")
+  status      String    @default("PENDING")
   notes       String?
-  receiptSent Boolean    @default(false)
+  receiptSent Boolean   @default(false)
 
   items    SaleItem[]
   payments Payment[]
-}
-
-enum SaleStatus {
-  PENDING
-  PARTIAL
-  PAID
-  RETURNED
 }
 
 model SaleItem {
